@@ -104,7 +104,7 @@ security_group = ec2.SecurityGroup(
 key_pair = ec2.KeyPair(
     'jenkins-key-pair',
     key_name='jenkins-key-pair',
-    public_key=open('/Users/angel.cruz/.ssh/id_rsa.pub').read()
+    public_key=open('/home/angel.cruz/.ssh/id_rsa.pub').read()
 )
 ####################################
 # Create Jenkins Instance
