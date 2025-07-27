@@ -126,6 +126,19 @@ jenkins_instance = ec2.Instance(
 sudo yum update -y
 sudo yum install -y python3-pip
 sudo pip3 install ansible
+
+# Create ansible user with sudo privileges
+sudo useradd -m -s /bin/bash ansible
+echo "ansible:ansible" | sudo chpasswd
+
+# Add ansible user to sudo group
+sudo usermod -aG wheel ansible
+
+# Configure sudoers to allow ansible user to run sudo without password
+echo "ansible ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/ansible
+
+# Set proper permissions on sudoers file
+sudo chmod 440 /etc/sudoers.d/ansible
 """,
     tags={
         'Name': 'jenkins-instance-1'
