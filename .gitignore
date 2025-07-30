@@ -3,3 +3,5 @@ venv/
 __pychache__
 aws/
 env/
+plan.log
+*/plan.log
