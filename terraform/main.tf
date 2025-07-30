@@ -122,36 +122,51 @@ data "aws_ami" "latest_ubuntu" {
 ####################################
 
 resource "aws_instance" "jenkins_instance" {
-  ami           = data.aws_ami.latest_ubuntu.id
-  instance_type = "t2.micro"
-  subnet_id     = aws_subnet.public.id
-  key_name      = aws_key_pair.jenkins_key.key_name
-  vpc_security_group_ids = [aws_security_group.jenkins_sg.id] 
-  
+  ami                    = data.aws_ami.latest_ubuntu.id
+  instance_type          = "t2.micro"
+  subnet_id              = aws_subnet.public.id
+  key_name               = aws_key_pair.jenkins_key.key_name
+  vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
+
   tags = {
     Name = "Jenkins-Instance"
   }
-
-  # user_data = <<-EOF
-  #             #!/bin/bash
-  #             sudo apt-get update
-  #             sudo apt-get install -y openjdk-11-jdk
-  #             wget -q -O - https://pkg.jenkins.io/debian/jenkins.io.key | sudo apt-key add -
-  #             sudo sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
-  #             sudo apt-get update
-  #             sudo apt-get install -y jenkins
-  #             sudo systemctl start jenkins
-  #             EOF
-
 }
 
+####################################
+# Create Jenkins Instance 2
+####################################
+
+resource "aws_instance" "jenkins_instance2" {
+  ami                    = data.aws_ami.latest_ubuntu.id
+  instance_type          = "t2.micro"
+  subnet_id              = aws_subnet.public.id
+  key_name               = aws_key_pair.jenkins_key.key_name
+  vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
+
+  tags = {
+    Name = "Jenkins-Instance2"
+  }
+}
+
+
+####################################
 # output the Jenkins Instance ID and Public IP
+####################################
 output "jenkins_instance_id" {
   value = aws_instance.jenkins_instance.id
 }
+output "jenkins_instance2_id" {
+  value = aws_instance.jenkins_instance2.id
+}
+
+
 output "jenkins_instance_public_ip" {
   value = aws_instance.jenkins_instance.public_ip
-} 
+}
+output "jenkins_instance2_public_ip" {
+  value = aws_instance.jenkins_instance2.public_ip
+}
 
 ####################################
 # Create 2nd Instance
