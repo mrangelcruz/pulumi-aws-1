@@ -122,6 +122,7 @@ data "aws_ami" "latest_ubuntu" {
 ####################################
 
 resource "aws_instance" "jenkins_instance" {
+  count                  = 2 # Creates 2 instances
   ami                    = data.aws_ami.latest_ubuntu.id
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.public.id
@@ -129,48 +130,45 @@ resource "aws_instance" "jenkins_instance" {
   vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
 
   tags = {
-    Name = "Jenkins-Instance"
+    Name = "Jenkins-Instance-${count.index + 1}"
   }
 }
 
-####################################
-# Create Jenkins Instance 2
-####################################
+# ####################################
+# # Create Jenkins Instance 2
+# ####################################
 
-resource "aws_instance" "jenkins_instance2" {
-  ami                    = data.aws_ami.latest_ubuntu.id
-  instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.public.id
-  key_name               = aws_key_pair.jenkins_key.key_name
-  vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
+# resource "aws_instance" "jenkins_instance2" {
+#   ami                    = data.aws_ami.latest_ubuntu.id
+#   instance_type          = "t2.micro"
+#   subnet_id              = aws_subnet.public.id
+#   key_name               = aws_key_pair.jenkins_key.key_name
+#   vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
 
-  tags = {
-    Name = "Jenkins-Instance2"
-  }
-}
+#   tags = {
+#     Name = "Jenkins-Instance2"
+#   }
+# }
 
 
 ####################################
 # output the Jenkins Instance ID and Public IP
 ####################################
-output "jenkins_instance_id" {
-  value = aws_instance.jenkins_instance.id
-}
-output "jenkins_instance2_id" {
-  value = aws_instance.jenkins_instance2.id
+
+# output "instance_public_ips" {
+#   description = "Public IP addresses of the EC2 instances"
+#   value       = [for instance in aws_instance.jenkins_instance : instance.public_ip instance.id]
+# }
+
+output "instance_public_ips" {
+  value = join("\n\n", [
+    for instance in aws_instance.jenkins_instance : <<-EOT
+     IP Address: ${instance.public_ip}
+     id: ${instance.id} 
+    Name: ${instance.tags["Name"]}
+   EOT
+  ])
 }
 
 
-output "jenkins_instance_public_ip" {
-  value = aws_instance.jenkins_instance.public_ip
-}
-output "jenkins_instance2_public_ip" {
-  value = aws_instance.jenkins_instance2.public_ip
-}
 
-####################################
-# Create 2nd Instance
-####################################
-
-####################################
-# Output the Jenkins Instance ID
