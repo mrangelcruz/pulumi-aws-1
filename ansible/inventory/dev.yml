@@ -1,0 +1,15 @@
+all:
+  hosts:
+    server1: 
+      ansible_host: 44.249.180.122
+    server2: 
+      ansible_host: 35.95.68.42
+  vars:
+    ansible_user: ubuntu
+    ansible_ssh_private_key_file: /home/angel.cruz/.ssh/id_rsa
+    ansible_python_interpreter: /usr/bin/python3
+
+webservers:
+  hosts:
+    jenkins1: 
+      ansible_host: 44.249.180.122

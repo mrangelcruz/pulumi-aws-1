@@ -1,92 +1,40 @@
- # AWS Python S3 Bucket Pulumi Template
+# NOTES
 
- A minimal Pulumi template for provisioning a single AWS S3 bucket using Python.
+## PING
+ansible -i inventory/dev.yaml all -m ping
 
- ## Overview
+## SOLUTION 
+!["inventory_yaml_file"](images/inventory_yaml.png)
 
- This template provisions an S3 bucket (`pulumi_aws.s3.BucketV2`) in your AWS account and exports its ID as an output. It’s an ideal starting point when:
-  - You want to learn Pulumi with AWS in Python.
-  - You need a barebones S3 bucket deployment to build upon.
-  - You prefer a minimal template without extra dependencies.
+## Lesson Learned
+<br>1. yml file NOT yaml file (ansible will not recognize it)
+<br>2. hosts: / <server_name> / ansible_host (ansible_host is required)
 
- ## Prerequisites
 
- - An AWS account with permissions to create S3 buckets.
- - AWS credentials configured in your environment (for example via AWS CLI or environment variables).
- - Python 3.6 or later installed.
- - Pulumi CLI already installed and logged in.
+## Error1
 
- ## Getting Started
+"[WARNING]:  * Failed to parse /home/angel.cruz/sandbox/repos/pulumi-aws-1/ansible/inventory/dev.yaml
+with ini plugin: Invalid host pattern 'webservers:' supplied, ending in ':' is not allowed, this
+character is reserved to provide a port."
+<br>
+This warning means Ansible is trying to treat your dev.yaml as a YAML inventory plugin config file, but it doesn't have the required plugin key at the root.
 
- 1. Generate a new project from this template:
-    ```bash
-    pulumi new aws-python
-    ```
- 2. Follow the prompts to set your project name and AWS region (default: `us-east-1`).
- 3. Change into your project directory:
-    ```bash
-    cd <project-name>
-    ```
- 4. Preview the planned changes:
-    ```bash
-    pulumi preview
-    ```
- 5. Deploy the stack:
-    ```bash
-    pulumi up
-    ```
- 6. Tear down when finished:
-    ```bash
-    pulumi destroy
-    ```
+<br>How to fix:<br>
 
- ## Project Layout
+If dev.yaml is a static YAML inventory:
+<br>Make sure it follows the YAML inventory format:
 
- After running `pulumi new`, your directory will look like:
- ```
- ├── __main__.py         # Entry point of the Pulumi program
- ├── Pulumi.yaml         # Project metadata and template configuration
- ├── requirements.txt    # Python dependencies
- └── Pulumi.<stack>.yaml # Stack-specific configuration (e.g., Pulumi.dev.yaml)
- ```
+<br>Example:
 
- ## Configuration
 
- This template defines the following config value:
+<br># filepath: /home/angel.cruz/sandbox/repos/pulumi-aws-1/ansible/inventory/dev.yaml
+<br>all:  
+<br>  hosts:    
+<br>    server1:      
+<br>      ansible_host: 34.221.233.84    
+<br>    server2:      
+<br>      ansible_host: 34.221.86.243  
+<br>   vars:    
+<br>     ansible_user: ubuntu    
+<br>     ansible_ssh_private_key_file: /home/angel.cruz/.ssh/id_rsa
 
- - `aws:region` (string)
-   The AWS region to deploy resources into.
-   Default: `us-east-1`
-
- View or update configuration with:
- ```bash
- pulumi config get aws:region
- pulumi config set aws:region us-west-2
- ```
-
- ## Outputs
-
- Once deployed, the stack exports:
-
- - `bucket_name` — the ID of the created S3 bucket.
-
- Retrieve outputs with:
- ```bash
- pulumi stack output bucket_name
- ```
-
- ## Next Steps
-
- - Customize `__main__.py` to add or configure additional resources.
- - Explore the Pulumi AWS SDK: https://www.pulumi.com/registry/packages/aws/
- - Break your infrastructure into modules for better organization.
- - Integrate into CI/CD pipelines for automated deployments.
-
- ## Help and Community
-
- If you have questions or need assistance:
- - Pulumi Documentation: https://www.pulumi.com/docs/
- - Community Slack: https://slack.pulumi.com/
- - GitHub Issues: https://github.com/pulumi/pulumi/issues
-
- Contributions and feedback are always welcome!
