@@ -1,9 +1,9 @@
 all:
   hosts:
     server1: 
-      ansible_host: 44.249.180.122
+      ansible_host: 54.212.67.19
     server2: 
-      ansible_host: 35.95.68.42
+      ansible_host: 18.236.201.215
   vars:
     ansible_user: ubuntu
     ansible_ssh_private_key_file: /home/angel.cruz/.ssh/id_rsa
@@ -12,4 +12,4 @@ all:
 webservers:
   hosts:
     jenkins1: 
-      ansible_host: 44.249.180.122
+      ansible_host: 54.212.67.19

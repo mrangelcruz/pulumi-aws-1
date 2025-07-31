@@ -1,7 +1,52 @@
 # NOTES
 
+## SHELL
+<br> -m shell -a <shell executable>
+<br>
+```
+ansible webservers -i inventory/dev.yml -m shell -a "free -m"
+```
+<br>(NOTE: use module 'shell' with arguments 'free -m')<br>
+
+<br>*RESULT*
+jenkins1 | CHANGED | rc=0 >> <br>
+
+
+|               | Total     | Used  |free  |shared|buff/cache|available|
+| ------------- |:---------:| -----:|-----:|-----:|    -----:|   -----:|
+| Mem:          | 954       |187    |218   |0     |548       |605      |
+| Swap:         |0          |0      |0
+
+<br>other shell commands:
+<br> ```ansible webservers -i inventory/dev.yml -m shell -a "cat /etc/os-release"```
+
+***NOTE:***
+To see what available modules exist for ansible:<br>
+```ansible-doc -l```
+
+
 ## PING
+<br> the '-m ping' below means **module 'ping'**
+
+<br>*ALL*
+
+```
 ansible -i inventory/dev.yaml all -m ping
+```
+*INDIVIDUAL* <br>
+```ansible jenkins1 -i inventory/dev.yml -m ping``` <br>
+OR <br>
+```ansible server2 -i inventory/dev.yml -m ping``` <br>
+
+(NOTE: reference it with the name given above 'ansible_host') <br>
+
+*BY GROUP* <br>
+```ansible webservers -i inventory/dev.yml -m ping``` <br>
+(NOTE: 'webservers' is the group name) <br>
+
+---
+
+## Error 1: bad format of YAML inventory
 
 ## SOLUTION 
 !["inventory_yaml_file"](images/inventory_yaml.png)
@@ -11,7 +56,7 @@ ansible -i inventory/dev.yaml all -m ping
 <br>2. hosts: / <server_name> / ansible_host (ansible_host is required)
 
 
-## Error1
+## Error 1 Message
 
 "[WARNING]:  * Failed to parse /home/angel.cruz/sandbox/repos/pulumi-aws-1/ansible/inventory/dev.yaml
 with ini plugin: Invalid host pattern 'webservers:' supplied, ending in ':' is not allowed, this
