@@ -122,43 +122,26 @@ data "aws_ami" "latest_ubuntu" {
 ####################################
 
 resource "aws_instance" "jenkins_instance" {
-  count                  = 2 # Creates 2 instances
-  ami                    = data.aws_ami.latest_ubuntu.id
-  instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.public.id
-  key_name               = aws_key_pair.jenkins_key.key_name
-  vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
+  count                                = 2 # Creates 2 instances
+  ami                                  = data.aws_ami.latest_ubuntu.id
+  instance_type                        = "t2.micro"
+  subnet_id                            = aws_subnet.public.id
+  key_name                             = aws_key_pair.jenkins_key.key_name
+  vpc_security_group_ids               = [aws_security_group.jenkins_sg.id]
 
   tags = {
     Name = "Jenkins-Instance-${count.index + 1}"
   }
 }
 
-# ####################################
-# # Create Jenkins Instance 2
-# ####################################
-
-# resource "aws_instance" "jenkins_instance2" {
-#   ami                    = data.aws_ami.latest_ubuntu.id
-#   instance_type          = "t2.micro"
-#   subnet_id              = aws_subnet.public.id
-#   key_name               = aws_key_pair.jenkins_key.key_name
-#   vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
-
-#   tags = {
-#     Name = "Jenkins-Instance2"
-#   }
-# }
+# Stop the instances after creation
+resource "aws_ec2_instance_state" "jenkins_stopped" {
+  count      = 2
+  instance_id = aws_instance.jenkins_instance[count.index].id
+  state      = "stopped" # stopped or running
+}
 
 
-####################################
-# output the Jenkins Instance ID and Public IP
-####################################
-
-# output "instance_public_ips" {
-#   description = "Public IP addresses of the EC2 instances"
-#   value       = [for instance in aws_instance.jenkins_instance : instance.public_ip instance.id]
-# }
 
 output "instance_public_ips" {
   value = join("\n\n", [

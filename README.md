@@ -1,5 +1,10 @@
 # NOTES
 
+## Terraform: create multiple instances, but put them in a stopped state
+
+!["stopped_state"](images/stopped_state.png)
+
+
 ## module -m file
 
 ### CREATE A NEW EMPTY FILE 
