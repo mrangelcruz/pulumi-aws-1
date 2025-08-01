@@ -1,5 +1,43 @@
 # NOTES
 
+## module -m file
+
+### CREATE A NEW EMPTY FILE 
+```ansible all -i inventory/dev.yml -m file -a 'dest=/tmp/temp_test state=touch'```
+
+__NOTE:__ Use single quote *NOT* Double Quote.  However, once you use single quote, you can then use double quote?  WTF?
+
+<br>
+
+__state__: state must be one of: <br>
+- absent
+- directory
+- file
+- hard
+- link
+- touch
+
+
+## COPY FILES FROM CONTROLLER TO CLIENTS
+
+ansible [group] -m copy -a[src=source_path dest=destination_path]
+
+```ansible -i inventory/dev.yml all -m copy -a "src=/home/angel.cruz/sandbox/repos/pulumi-aws-1/ansible/hello_world.yml   dest=/tmp/test.yml"```
+
+<br> After the file is copied, validate by going to one of the servers:
+```ssh ubuntu@44.247.77.183```
+
+<br> -> cd /tmp and cat test.yamlfile
+
+
+## COPY A NEW FILE WITH CONTENT
+```ansible -i inventory/dev.yml all -m copy -a "content='This is a NEW CONTENT FROM ANGEL'  dest=/tmp/junk.yml"```
+
+<br> Validate by ssh into a server, go to /tmp, and cat junk.yml
+
+
+
+
 ## SHELL
 <br> -m shell -a <shell executable>
 <br>
@@ -31,7 +69,7 @@ To see what available modules exist for ansible:<br>
 <br>*ALL*
 
 ```
-ansible -i inventory/dev.yaml all -m ping
+ansible -i inventory/dev.yml all -m ping
 ```
 *INDIVIDUAL* <br>
 ```ansible jenkins1 -i inventory/dev.yml -m ping``` <br>
