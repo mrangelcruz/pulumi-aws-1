@@ -1,0 +1,32 @@
+plugin: amazon.aws.aws_ec2
+
+# # AWS region
+# regions:
+#   - us-west-2
+
+# # Keyed groups for better organization
+# keyed_groups:
+#   - key: tags.Name
+#     prefix: name
+#   - key: instance_type
+#     prefix: type
+#   - key: instance_state
+#     prefix: state
+
+# # Host variables
+# hostnames:
+#   - ip-address
+#   - dns-name
+#   - tag:Name
+#   - instance-id
+
+# # Include instances in all states (running, stopped, etc.)
+# include_filters:
+#   - instance-state-name: running
+#   - instance-state-name: stopped
+
+# # Group by instance state
+# groups:
+#   running: "'running' in (instance_state|default([]))"
+#   stopped: "'stopped' in (instance_state|default([]))"
+#   jenkins: "'jenkins' in (tags.Name|default('')|lower)"

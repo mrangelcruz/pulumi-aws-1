@@ -1,5 +1,35 @@
 # NOTES
 
+## Ansible: Dynamic Inventory
+
+    (a) Create Plugin List file
+
+```ansible-doc -t inventory -l >> ansible_plugin.txt```
+
+    (b) enable plugin in the ansible.cfg file
+!["enable_plugin"](images/enable_plugin.png)
+
+
+    (c) install boto3 natively to your ubuntu VM
+
+    (d) create inventory file that calls the plugin
+
+!["inventory_file_dyn"](images/inv_file_dynamic.png)
+
+    (e) run to use inventory file
+    
+```ansible-inventory -i inventory/aws_ec2.yml --graph```
+
+<br>RESULT:<br>
+
+!["inventory_result"](images/inv_result.png)
+
+<br>
+
+
+
+
+
 ## Terraform: create multiple instances, but put them in a stopped state
 
 !["stopped_state"](images/stopped_state.png)
