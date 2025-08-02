@@ -26,13 +26,20 @@
 
 <br>
 
+__NOTE:__ use --list to get details of instances
 
+You can now use the dynamic inventory:
 
+```ansible all -i inventory/aws_ec2.yml -u ubuntu -m ping```
 
+__NOTE:__ you need "-u ubuntu" to successfully ssh into the instance and ping
 
-## Terraform: create multiple instances, but put them in a stopped state
+## DON'T USE !!! Terraform: create multiple instances, but put them in a stopped state
 
 !["stopped_state"](images/stopped_state.png)
+
+
+__RESULT__ : new instances will get recreated and the IP addesses will be different.  Bug since it is supposed to not recreate?
 
 
 ## module -m file

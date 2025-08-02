@@ -134,11 +134,11 @@ resource "aws_instance" "jenkins_instance" {
   }
 }
 
-# -# Stop the instances after creation
+# # Stop the instances after creation
 # resource "aws_ec2_instance_state" "jenkins_stopped" {
 #   count      = 2
 #   instance_id = aws_instance.jenkins_instance[count.index].id
-#   state      = "running" # stopped or running
+#   state      = "stopped" # stopped or running
 # }
 
 
