@@ -1,5 +1,23 @@
 # NOTES
 
+## Ansible Playbook: Intro
+
+Sample Playbook:
+![intro_playbook](images/intro_playbook.png)
+
+__NOTE__: not just 'ping', but ansible.builtin.ping (the actual module name)
+
+Invoke:
+
+```ansible-playbook -u ubuntu -i inventory/aws_ec2.yml playbook/intro_playbook.yml```
+
+__NOTE__: You need to add '-u ubuntu' else it will try to use your current username instead of what was set up in terraform.
+
+__RESULT__:
+![intro_playbook_result](images/intro_playbook_result.png)
+
+
+
 ## Ansible: Dynamic Inventory
 
     (a) Create Plugin List file
