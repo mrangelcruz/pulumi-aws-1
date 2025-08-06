@@ -1,5 +1,10 @@
 # NOTES
 
+## Ansible Playbook: shorten command and run playbook directly
+
+
+
+
 ## Ansible Playbook: Intro
 
 Sample Playbook:
