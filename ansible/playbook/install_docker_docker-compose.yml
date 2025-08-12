@@ -1,0 +1,57 @@
+---
+- name: Install Docker and Docker Compose
+  hosts: all
+  become: yes # Run tasks with sudo privileges
+
+  tasks:
+    - name: Update apt package index (for Debian/Ubuntu)
+      apt:
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install required system packages
+      package:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg
+        - lsb-release
+        - python3-pip # Needed for pip module if used later
+      when: ansible_os_family == "Debian"
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install Docker Engine
+      package:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+      when: ansible_os_family == "Debian"
+
+    - name: Install Docker Compose plugin
+      package:
+        name: docker-compose-plugin
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Add remote user to docker group
+      user:
+        name: "{{ ansible_user }}" # Or specify a different user if needed
+        groups: docker
+        append: yes
