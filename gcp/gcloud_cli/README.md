@@ -57,10 +57,8 @@ gcloud container clusters create my-gke-cluster \
 
 ## Create Kubernetes Cluster on GCP using Terraform
 
-gke-cluster/
-├── main.tf
-├── variables.tf
-└── outputs.tf
+
+![gke-folder-hier](images/gke-folder-hier.png)
 
 gcloud auth application-default login
 
