@@ -41,6 +41,11 @@ RESULT:<br>
 
 ```gcloud compute machine-types list > list.log```
 
+<br>-OR- ubuntu specific<br>
+
+```gcloud compute images list --project ubuntu-os-cloud --filter ubuntu-minimal```
+
+
 ### Create Kubernetes Cluster
 
 gcloud container clusters create my-gke-cluster \
