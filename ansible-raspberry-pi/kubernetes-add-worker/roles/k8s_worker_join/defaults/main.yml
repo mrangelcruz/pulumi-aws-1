@@ -1,0 +1,6 @@
+---
+# defaults file for roles/k8s_worker_join
+kube_join_command: ""
+ansible_user: pi
+ansible_python_interpreter: /usr/bin/python3
+k8s_version: "1.29"

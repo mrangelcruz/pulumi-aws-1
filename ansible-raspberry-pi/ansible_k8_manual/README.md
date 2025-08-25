@@ -7,6 +7,20 @@
 username: angelcruz <br>
 ip-address: 192.168.1.100 <br>
 
+username: pi <br>
+ip-address: 192.168.1.248 <br>
+
+username: pi <br>
+ip-address: 192.168.1.97 <br>
+
+
+From your desktop, you can auto login and ssh as the user by copying your ssh id to the remote servers, for example:<br>
+
+    ssh-copy-id pi@192.168.1.248 (log in normally)
+    ssh pi@192.168.1.248 (you will get logged in automatically)
+    
+
+
 ### Manually installing kubernetes on the Master Node
 
 This guide focuses on setting up a single-node control plane using kubeadm.

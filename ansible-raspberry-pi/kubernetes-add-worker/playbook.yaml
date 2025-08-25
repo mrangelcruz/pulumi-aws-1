@@ -1,0 +1,20 @@
+---
+- name: Add a new worker node to the Kubernetes cluster
+  hosts: k8_worker
+  become: true
+  vars_files:
+    - .secrets.yaml
+  roles:
+    - k8s_worker_join
+  
+  handlers:
+    - name: Restart containerd
+      ansible.builtin.systemd:
+        name: containerd
+        state: restarted
+        daemon_reload: yes
+    - name: Restart kubelet
+      ansible.builtin.systemd:
+        name: kubelet
+        state: restarted
+        daemon_reload: yes

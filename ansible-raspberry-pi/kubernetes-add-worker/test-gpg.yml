@@ -1,0 +1,60 @@
+---
+- name: Test Kubernetes GPG key handling
+  hosts: k8_worker
+  become: true
+  vars:
+    k8s_version: "1.29"
+  tasks:
+    - name: Create APT keyrings directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Ensure gpg is installed
+      ansible.builtin.apt:
+        name: gnupg
+        state: present
+
+    - name: Import Kubernetes GPG key using apt-key (legacy method)
+      ansible.builtin.shell: |
+        curl -fsSL https://pkgs.k8s.io/core/stable/v{{ k8s_version }}/deb/Release.key | apt-key add -
+      register: gpg_import
+      retries: 3
+      delay: 5
+
+    - name: Debug - Check GPG key content
+      ansible.builtin.shell: |
+        curl -fsSL https://pkgs.k8s.io/core/stable/v{{ k8s_version }}/deb/Release.key | head -10
+      register: gpg_debug
+      changed_when: false
+
+    - name: Display GPG key debug info
+      ansible.builtin.debug:
+        var: gpg_debug.stdout_lines
+
+    - name: Verify GPG key import
+      ansible.builtin.shell: |
+        apt-key list | grep -i kubernetes || echo "No Kubernetes keys found with apt-key"
+      register: gpg_verify
+      changed_when: false
+
+    - name: Display GPG key verification result
+      ansible.builtin.debug:
+        var: gpg_verify.stdout_lines
+
+    - name: Add Kubernetes APT repository for v{{ k8s_version }}
+      ansible.builtin.apt_repository:
+        repo: "deb https://pkgs.k8s.io/core/stable/v{{ k8s_version }}/deb/ /"
+        state: present
+        filename: kubernetes
+
+    - name: Test APT update to verify repository configuration
+      ansible.builtin.apt:
+        update_cache: true
+      register: apt_test_update
+      failed_when: false
+
+    - name: Display APT update test result
+      ansible.builtin.debug:
+        var: apt_test_update 
