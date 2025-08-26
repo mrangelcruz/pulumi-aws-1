@@ -1,0 +1,69 @@
+---
+- name: Test exact controller Kubernetes setup replication
+  hosts: k8_worker
+  become: true
+  vars:
+    k8s_version: "1.29"
+  tasks:
+    - name: Create APT keyrings directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Ensure gpg is installed
+      ansible.builtin.apt:
+        name: gnupg
+        state: present
+
+    - name: Update APT cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Download and import Kubernetes GPG key (exact replica of controller)
+      ansible.builtin.shell: |
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      register: gpg_import
+      failed_when: false
+
+    - name: Fallback GPG key import if primary method fails
+      ansible.builtin.shell: |
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/Release.key | apt-key add -
+      become: true
+      when: gpg_import.rc != 0
+      register: gpg_fallback
+
+    - name: Add Kubernetes APT repository (exact replica of controller)
+      ansible.builtin.apt_repository:
+        repo: "{{ 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v' + k8s_version + '/deb/ /' if gpg_import.rc == 0 else 'deb https://pkgs.k8s.io/core:/stable:/v' + k8s_version + '/deb/ /' }}"
+        state: present
+        filename: kubernetes
+
+    - name: Update APT cache after adding repository
+      ansible.builtin.apt:
+        update_cache: true
+      register: apt_update
+
+    - name: Display APT update result
+      ansible.builtin.debug:
+        var: apt_update
+
+    - name: Check if kubelet packages are available
+      ansible.builtin.shell: |
+        apt-cache search "kubelet={{ k8s_version }}" | head -5
+      register: kubelet_check
+      changed_when: false
+
+    - name: Display kubelet availability
+      ansible.builtin.debug:
+        var: kubelet_check.stdout_lines
+
+    - name: Check what's actually available
+      ansible.builtin.shell: |
+        apt-cache search kubernetes | grep -E "(kubelet|kubeadm|kubectl)" | head -10
+      register: available_packages
+      changed_when: false
+
+    - name: Display available packages
+      ansible.builtin.debug:
+        var: available_packages.stdout_lines 

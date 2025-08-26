@@ -1,5 +1,5 @@
 ---
-- name: Test Kubernetes GPG key handling
+- name: Test different Kubernetes repository approaches
   hosts: k8_worker
   become: true
   vars:
@@ -16,45 +16,41 @@
         name: gnupg
         state: present
 
-    - name: Import Kubernetes GPG key using apt-key (legacy method)
-      ansible.builtin.shell: |
-        curl -fsSL https://pkgs.k8s.io/core/stable/v{{ k8s_version }}/deb/Release.key | apt-key add -
-      register: gpg_import
-      retries: 3
-      delay: 5
-
-    - name: Debug - Check GPG key content
-      ansible.builtin.shell: |
-        curl -fsSL https://pkgs.k8s.io/core/stable/v{{ k8s_version }}/deb/Release.key | head -10
-      register: gpg_debug
-      changed_when: false
-
-    - name: Display GPG key debug info
-      ansible.builtin.debug:
-        var: gpg_debug.stdout_lines
-
-    - name: Verify GPG key import
-      ansible.builtin.shell: |
-        apt-key list | grep -i kubernetes || echo "No Kubernetes keys found with apt-key"
-      register: gpg_verify
-      changed_when: false
-
-    - name: Display GPG key verification result
-      ansible.builtin.debug:
-        var: gpg_verify.stdout_lines
-
-    - name: Add Kubernetes APT repository for v{{ k8s_version }}
-      ansible.builtin.apt_repository:
-        repo: "deb https://pkgs.k8s.io/core/stable/v{{ k8s_version }}/deb/ /"
-        state: present
-        filename: kubernetes
-
-    - name: Test APT update to verify repository configuration
+    - name: Update APT cache
       ansible.builtin.apt:
         update_cache: true
-      register: apt_test_update
-      failed_when: false
 
-    - name: Display APT update test result
+    - name: Try legacy apt.kubernetes.io repository
+      ansible.builtin.apt_repository:
+        repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+        state: present
+        filename: kubernetes-legacy
+
+    - name: Update APT cache for legacy repo
+      ansible.builtin.apt:
+        update_cache: true
+      register: legacy_update
+
+    - name: Display legacy repo result
       ansible.builtin.debug:
-        var: apt_test_update 
+        var: legacy_update
+
+    - name: Check if kubelet packages are available from legacy repo
+      ansible.builtin.shell: |
+        apt-cache search "kubelet={{ k8s_version }}" | head -5
+      register: kubelet_check
+      changed_when: false
+
+    - name: Display kubelet availability
+      ansible.builtin.debug:
+        var: kubelet_check.stdout_lines
+
+    - name: Check what's actually available
+      ansible.builtin.shell: |
+        apt-cache search kubernetes | grep -E "(kubelet|kubeadm|kubectl)" | head -10
+      register: available_packages
+      changed_when: false
+
+    - name: Display available packages
+      ansible.builtin.debug:
+        var: available_packages.stdout_lines 

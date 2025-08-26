@@ -1,0 +1,121 @@
+---
+- name: Replicate controller Kubernetes setup on worker node
+  hosts: k8_worker
+  become: true
+  vars:
+    k8s_version: "1.29"
+  tasks:
+    - name: Check what repositories the controller might be using
+      ansible.builtin.debug:
+        msg: |
+          Since your controller is working, we need to replicate its exact setup.
+          This playbook will try different approaches to match your controller.
+
+    - name: Method 1: Try to use the working legacy repository
+      block:
+        - name: Add legacy Kubernetes repository (most likely what controller uses)
+          ansible.builtin.apt_repository:
+            repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+            state: present
+            filename: kubernetes-legacy
+
+        - name: Update APT cache
+          ansible.builtin.apt:
+            update_cache: true
+          register: legacy_update
+
+        - name: Check if kubelet packages are available
+          ansible.builtin.shell: |
+            apt-cache search "kubelet={{ k8s_version }}" | head -5
+          register: kubelet_check
+          changed_when: false
+
+        - name: Display kubelet availability
+          ansible.builtin.debug:
+            var: kubelet_check.stdout_lines
+
+      rescue:
+        - name: Legacy repo failed
+          ansible.builtin.debug:
+            msg: "Legacy repository failed - trying alternative approach"
+
+    - name: Method 2: Try alternative repository approach
+      block:
+        - name: Add Google Cloud GPG key
+          ansible.builtin.shell: |
+            curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+
+        - name: Try different repository paths
+          ansible.builtin.apt_repository:
+            repo: "{{ item }}"
+            state: present
+            filename: "kubernetes-{{ loop.index }}"
+          loop:
+            - "deb https://packages.cloud.google.com/apt kubernetes-xenial main"
+            - "deb https://packages.cloud.google.com/apt kubernetes-stable main"
+
+        - name: Update APT cache
+          ansible.builtin.apt:
+            update_cache: true
+          register: alt_update
+
+        - name: Check package availability
+          ansible.builtin.shell: |
+            apt-cache search kubelet | head -5
+          register: alt_check
+          changed_when: false
+
+        - name: Display alternative approach results
+          ansible.builtin.debug:
+            var: alt_check.stdout_lines
+
+      rescue:
+        - name: Alternative approach failed
+          ansible.builtin.debug:
+            msg: "Alternative approach failed - checking what's available"
+
+    - name: Method 3: Check what's actually available
+      block:
+        - name: Check all available Kubernetes packages
+          ansible.builtin.shell: |
+            apt-cache search kubernetes | grep -E "(kubelet|kubeadm|kubectl)" | head -10
+          register: available_packages
+          changed_when: false
+
+        - name: Display available packages
+          ansible.builtin.debug:
+            var: available_packages.stdout_lines
+
+        - name: Check if we can install what's available
+          ansible.builtin.apt:
+            name:
+              - kubernetes-client
+              - kubectx
+              - kubetail
+            state: present
+          register: basic_install
+          failed_when: false
+
+        - name: Display basic installation result
+          ansible.builtin.debug:
+            var: basic_install
+
+    - name: Provide next steps guidance
+      ansible.builtin.debug:
+        msg: |
+          ================================================
+          NEXT STEPS FOR WORKER NODE SETUP
+          ================================================
+          
+          Based on the results above, here are your options:
+          
+          1. If packages were found: Proceed with installation
+          2. If no packages: Check what your controller is using
+          3. Alternative: Use the same installation method as controller
+          
+          RECOMMENDATION:
+          - Check your controller's /etc/apt/sources.list.d/ for kubernetes repos
+          - Copy the exact repository configuration
+          - Use the same GPG keys
+          
+          ================================================ 

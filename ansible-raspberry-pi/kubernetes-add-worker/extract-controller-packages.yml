@@ -1,0 +1,51 @@
+---
+- name: Extract Kubernetes packages from controller
+  hosts: k8_controller
+  become: true
+  tasks:
+    - name: Check what Kubernetes packages are installed on controller
+      ansible.builtin.shell: |
+        dpkg -l | grep -E "(kubelet|kubeadm|kubectl)" | awk '{print $2}' | sort
+      register: installed_packages
+      changed_when: false
+
+    - name: Display installed packages
+      ansible.builtin.debug:
+        var: installed_packages.stdout_lines
+
+    - name: Create temporary directory for package extraction
+      ansible.builtin.file:
+        path: /tmp/k8s-packages
+        state: directory
+        mode: '0755'
+
+    - name: Check package versions
+      ansible.builtin.shell: |
+        dpkg -l | grep -E "(kubelet|kubeadm|kubectl)" | awk '{print $2 " " $3}'
+      register: package_versions
+      changed_when: false
+
+    - name: Display package versions
+      ansible.builtin.debug:
+        var: package_versions.stdout_lines
+
+    - name: Try to find packages in standard locations
+      ansible.builtin.shell: |
+        find /var/cache/apt/archives -maxdepth 1 -name "*kube*" -name "*.deb" 2>/dev/null | head -10
+      register: found_packages
+      changed_when: false
+
+    - name: Display found packages
+      ansible.builtin.debug:
+        var: found_packages.stdout_lines
+
+    - name: Alternative: Check if packages are available for download
+      ansible.builtin.shell: |
+        apt-cache policy {{ item }} | head -5
+      loop: "{{ installed_packages.stdout_lines }}"
+      register: package_policy
+      changed_when: false
+
+    - name: Display package policy information
+      ansible.builtin.debug:
+        var: package_policy.stdout_lines 

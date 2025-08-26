@@ -84,6 +84,11 @@ Code
         sudo systemctl restart containerd
         sudo systemctl enable containerd
 
+__NOTE:__ <br>
+
+The docker.list above may be problematic (it may point to ubuntu or raspian depending on what you echo from above during Google search).  What works is this:
+
+![debian_docker.list](images/debian_docker.list.png)
 
 ### Add Kubernetes APT Repository.
 
@@ -135,9 +140,9 @@ kubeadm join 192.168.1.100:6443 --token uskjn0.6j6cpeywo3jlq5of \
 
 ```
 
-NOTE: To see the join commands again, invoke:<br>
+NOTE: To create the join commands again, invoke:<br>
 ``` kubeadm token create --print-join-command ```
-
+<br> The above is required if adding new worker nodes at a later time
 
 ### Configure kubectl.
 

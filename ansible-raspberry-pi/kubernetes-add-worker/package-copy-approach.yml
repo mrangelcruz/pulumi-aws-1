@@ -1,0 +1,101 @@
+---
+- name: Copy Kubernetes packages from controller to worker nodes
+  hosts: k8_controller
+  become: true
+  tasks:
+    - name: Check what Kubernetes packages are installed on controller
+      ansible.builtin.shell: |
+        dpkg -l | grep -E "(kubelet|kubeadm|kubectl)" | awk '{print $2}' | sort
+      register: installed_packages
+      changed_when: false
+
+    - name: Display installed packages
+      ansible.builtin.debug:
+        var: installed_packages.stdout_lines
+
+    - name: Create temporary directory for package extraction
+      ansible.builtin.file:
+        path: /tmp/k8s-packages
+        state: directory
+        mode: '0755'
+
+    - name: Extract all Kubernetes packages to temporary directory
+      ansible.builtin.shell: |
+        dpkg-repack {{ item }}
+      loop: "{{ installed_packages.stdout_lines }}"
+      args:
+        chdir: /tmp/k8s-packages
+      register: package_extraction
+
+    - name: Display package extraction results
+      ansible.builtin.debug:
+        var: package_extraction
+
+    - name: List extracted packages
+      ansible.builtin.shell: |
+        ls -la /tmp/k8s-packages/*.deb
+      register: package_list
+      changed_when: false
+
+    - name: Display extracted package list
+      ansible.builtin.debug:
+        var: package_list.stdout_lines
+
+- name: Install extracted packages on worker nodes
+  hosts: k8_worker
+  become: true
+  tasks:
+    - name: Create temporary directory for packages
+      ansible.builtin.file:
+        path: /tmp/k8s-packages
+        state: directory
+        mode: '0755'
+
+    - name: Copy packages from controller to worker
+      ansible.builtin.copy:
+        src: /tmp/k8s-packages/
+        dest: /tmp/k8s-packages/
+        remote_src: false
+        mode: '0644'
+      delegate_to: "{{ groups['k8_controller'][0] }}"
+
+    - name: Install all copied packages
+      ansible.builtin.shell: |
+        dpkg -i /tmp/k8s-packages/*.deb
+      register: package_installation
+      failed_when: false
+
+    - name: Display installation results
+      ansible.builtin.debug:
+        var: package_installation
+
+    - name: Fix any dependency issues
+      ansible.builtin.apt:
+        update_cache: true
+        autoremove: true
+        autoclean: true
+      when: package_installation.rc != 0
+
+    - name: Verify Kubernetes packages are installed
+      ansible.builtin.shell: |
+        dpkg -l | grep -E "(kubelet|kubeadm|kubectl)" | sort
+      register: verification
+      changed_when: false
+
+    - name: Display verification results
+      ansible.builtin.debug:
+        var: verification.stdout_lines
+
+    - name: Clean up temporary files
+      ansible.builtin.file:
+        path: /tmp/k8s-packages
+        state: absent
+
+- name: Clean up controller temporary files
+  hosts: k8_controller
+  become: true
+  tasks:
+    - name: Remove temporary package directory
+      ansible.builtin.file:
+        path: /tmp/k8s-packages
+        state: absent 

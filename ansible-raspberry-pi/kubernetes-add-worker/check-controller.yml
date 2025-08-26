@@ -1,0 +1,134 @@
+---
+- name: Check controller Kubernetes configuration
+  hosts: k8_controller
+  become: true
+  tasks:
+    - name: Check system information
+      ansible.builtin.shell: |
+        echo "=== SYSTEM INFO ==="
+        cat /etc/os-release
+        echo "=== KERNEL ==="
+        uname -a
+        echo "=== ARCHITECTURE ==="
+        arch
+      register: system_info
+      changed_when: false
+
+    - name: Display system information
+      ansible.builtin.debug:
+        var: system_info.stdout_lines
+
+    - name: Check what Kubernetes packages are installed
+      ansible.builtin.shell: |
+        dpkg -l | grep -E "(kubelet|kubeadm|kubectl|kubernetes)" | sort
+      register: installed_packages
+      changed_when: false
+
+    - name: Display installed Kubernetes packages
+      ansible.builtin.debug:
+        var: installed_packages.stdout_lines
+
+    - name: Check Kubernetes package versions
+      ansible.builtin.shell: |
+        echo "=== KUBELET VERSION ==="
+        kubelet --version 2>/dev/null || echo "kubelet not found"
+        echo "=== KUBEADM VERSION ==="
+        kubeadm version 2>/dev/null || echo "kubeadm not found"
+        echo "=== KUBECTL VERSION ==="
+        kubectl version --client 2>/dev/null || echo "kubectl not found"
+      register: k8s_versions
+      changed_when: false
+
+    - name: Display Kubernetes versions
+      ansible.builtin.debug:
+        var: k8s_versions.stdout_lines
+
+    - name: Check what repositories are configured
+      ansible.builtin.shell: |
+        echo "=== APT SOURCES LIST ==="
+        cat /etc/apt/sources.list | grep -i kubernetes || echo "No kubernetes in main sources.list"
+        echo "=== APT SOURCES LIST.D ==="
+        find /etc/apt/sources.list.d/ -name "*kubernetes*" -exec echo "=== {} ===" \; -exec cat {} \;
+      register: repository_info
+      changed_when: false
+
+    - name: Display repository information
+      ansible.builtin.debug:
+        var: repository_info.stdout_lines
+
+    - name: Check GPG keys
+      ansible.builtin.shell: |
+        echo "=== APT-KEY LIST ==="
+        apt-key list | grep -i kubernetes || echo "No kubernetes keys found with apt-key"
+        echo "=== GPG KEYRINGS ==="
+        find /etc/apt/keyrings -name "*kubernetes*" 2>/dev/null | head -10 || echo "No kubernetes keyrings found"
+      register: gpg_info
+      changed_when: false
+
+    - name: Display GPG information
+      ansible.builtin.debug:
+        var: gpg_info.stdout_lines
+
+    - name: Check if Kubernetes packages are available in APT cache
+      ansible.builtin.shell: |
+        echo "=== AVAILABLE KUBELET PACKAGES ==="
+        apt-cache search kubelet | head -10
+        echo "=== AVAILABLE KUBEADM PACKAGES ==="
+        apt-cache search kubeadm | head -10
+        echo "=== AVAILABLE KUBECTL PACKAGES ==="
+        apt-cache search kubectl | head -10
+      register: apt_cache_info
+      changed_when: false
+
+    - name: Display APT cache information
+      ansible.builtin.debug:
+        var: apt_cache_info.stdout_lines
+
+    - name: Check container runtime
+      ansible.builtin.shell: |
+        echo "=== CONTAINERD STATUS ==="
+        systemctl status containerd --no-pager -l || echo "containerd not running"
+        echo "=== CONTAINERD VERSION ==="
+        containerd --version 2>/dev/null || echo "containerd not found"
+        echo "=== DOCKER STATUS ==="
+        systemctl status docker --no-pager -l 2>/dev/null || echo "docker not running"
+        echo "=== DOCKER VERSION ==="
+        docker --version 2>/dev/null || echo "docker not found"
+      register: container_runtime_info
+      changed_when: false
+
+    - name: Display container runtime information
+      ansible.builtin.debug:
+        var: container_runtime_info.stdout_lines
+
+    - name: Check Kubernetes cluster status
+      ansible.builtin.shell: |
+        echo "=== NODE STATUS ==="
+        kubectl get nodes 2>/dev/null || echo "kubectl not available or cluster not accessible"
+        echo "=== CLUSTER INFO ==="
+        kubectl cluster-info 2>/dev/null || echo "cluster info not available"
+      register: cluster_info
+      changed_when: false
+
+    - name: Display cluster information
+      ansible.builtin.debug:
+        var: cluster_info.stdout_lines
+
+    - name: Check installation method
+      ansible.builtin.shell: |
+        echo "=== INSTALLATION METHOD CHECK ==="
+        echo "Checking for common installation methods..."
+        echo "1. K3S:"
+        ls -la /usr/local/bin/k3s 2>/dev/null || echo "   K3S not found"
+        echo "2. MicroK8s:"
+        which microk8s 2>/dev/null || echo "   MicroK8s not found"
+        echo "3. Standard Kubernetes:"
+        which kubelet 2>/dev/null || echo "   Standard kubelet not found"
+        echo "4. Installation scripts:"
+        find /root /home -name "*k8s*" -name "*.sh" 2>/dev/null | head -5 || echo "   No installation scripts found"
+      register: installation_method
+      changed_when: false
+
+    - name: Display installation method
+      ansible.builtin.debug:
+        var: installation_method.stdout_lines 

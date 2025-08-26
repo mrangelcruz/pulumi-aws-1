@@ -1,0 +1,57 @@
+---
+- name: Check controller Kubernetes configuration (non-sudo)
+  hosts: k8_controller
+  become: false
+  tasks:
+    - name: Check system information
+      ansible.builtin.shell: |
+        echo "=== SYSTEM INFO ==="
+        cat /etc/os-release
+        echo "=== KERNEL ==="
+        uname -a
+        echo "=== ARCHITECTURE ==="
+        arch
+      register: system_info
+      changed_when: false
+
+    - name: Display system information
+      ansible.builtin.debug:
+        var: system_info.stdout_lines
+
+    - name: Check if Kubernetes binaries exist
+      ansible.builtin.shell: |
+        echo "=== KUBERNETES BINARIES ==="
+        which kubelet || echo "kubelet not found"
+        which kubeadm || echo "kubeadm not found"
+        which kubectl || echo "kubectl not found"
+        which containerd || echo "containerd not found"
+      register: binary_check
+      changed_when: false
+
+    - name: Display binary check results
+      ansible.builtin.debug:
+        var: binary_check.stdout_lines
+
+    - name: Check repository files (readable without sudo)
+      ansible.builtin.shell: |
+        echo "=== REPOSITORY FILES ==="
+        find /etc/apt/sources.list.d/ -name "*kubernetes*" -readable -exec echo "=== {} ===" \; -exec cat {} \; 2>/dev/null || echo "No readable kubernetes repository files found"
+      register: repo_check
+      changed_when: false
+
+    - name: Display repository check results
+      ansible.builtin.debug:
+        var: repo_check.stdout_lines
+
+    - name: Check installation method indicators
+      ansible.builtin.shell: |
+        echo "=== INSTALLATION INDICATORS ==="
+        ls -la /usr/local/bin/k3s 2>/dev/null || echo "K3S not found"
+        which microk8s 2>/dev/null || echo "MicroK8s not found"
+        ls -la /snap/bin/microk8s 2>/dev/null || echo "MicroK8s snap not found"
+      register: install_check
+      changed_when: false
+
+    - name: Display installation check results
+      ansible.builtin.debug:
+        var: install_check.stdout_lines 
