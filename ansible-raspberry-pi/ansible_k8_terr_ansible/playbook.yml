@@ -1,0 +1,149 @@
+# playbook.yml
+
+- name: Install Kubernetes and Containerd on a single Ubuntu node
+  hosts: k8_controller
+  become: yes  
+  gather_facts: true
+  vars:
+    k8s_version: v1.33.4
+  tasks:
+    - name: Disable swap
+      command: swapoff -a
+      when: ansible_swaptotal_mb | int > 0
+
+    - name: Comment out swap entry in /etc/fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^(.*swap.*)$'
+        replace: '# \1'
+
+    - name: Install required dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker apt repository
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+
+    - name: Install containerd.io
+      apt:
+        name: containerd.io
+        state: present
+
+    - name: Configure Containerd to use systemd as cgroup driver
+      shell: |
+        containerd config default | sed 's/SystemdCgroup = false/SystemdCgroup = true/' > /etc/containerd/config.toml
+      args:
+        creates: /etc/containerd/config.toml
+
+    - name: Restart containerd
+      systemd:
+        name: containerd
+        state: restarted
+        enabled: yes
+
+    - name: Add Kubernetes GPG key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Download kubeadm binary
+      get_url:
+        url: "https://dl.k8s.io/release/{{ k8s_version }}/bin/linux/amd64/kubeadm"
+        dest: /usr/local/bin/kubeadm
+        mode: '0755'
+
+    - name: Download kubelet binary
+      get_url:
+        url: "https://dl.k8s.io/release/{{ k8s_version }}/bin/linux/amd64/kubelet"
+        dest: /usr/local/bin/kubelet
+        mode: '0755'
+
+    - name: Download kubectl binary
+      get_url:
+        url: "https://dl.k8s.io/release/{{ k8s_version }}/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
+
+    - name: Create kubelet systemd service file
+      copy:
+        dest: /etc/systemd/system/kubelet.service
+        content: |
+          [Unit]
+          Description=kubelet: The Kubernetes Node Agent
+          Documentation=https://kubernetes.io/docs/
+          After=network-online.target
+
+          [Service]
+          ExecStart=/usr/local/bin/kubelet
+          Restart=always
+          StartLimitInterval=0
+          RestartSec=10
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Reload systemd
+
+    - name: Enable and start kubelet service
+      systemd:
+        name: kubelet
+        enabled: yes
+        state: started
+
+    - name: Clean up old Kubernetes manifests and config
+      file:
+        path: /etc/kubernetes
+        state: absent
+      become: yes
+
+    - name: Restart kubelet after cleanup
+      systemd:
+        name: kubelet
+        state: restarted
+
+    - name: Initialize the Kubernetes control-plane
+      command: kubeadm init --pod-network-cidr=10.244.0.0/16 --cri-socket=/run/containerd/containerd.sock
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Show ansible_user value
+      debug:
+        msg: "ansible_user is {{ ansible_user }}"
+
+    - name: Create .kube directory for the regular user
+      file:
+        path: /home/{{ ansible_user }}/.kube
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Copy kubeconfig to user's home directory
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/{{ ansible_user }}/.kube/config
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0600'
+        remote_src: yes
+
+    - name: Install Calico CNI
+      command: kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+      args:
+        creates: /etc/calico
+  handlers:
+    - name: Reload systemd
+      command: systemctl daemon-reload

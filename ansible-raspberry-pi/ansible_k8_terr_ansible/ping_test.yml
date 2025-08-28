@@ -1,0 +1,7 @@
+---
+- name: Check host connectivity with ping
+  hosts: k8_controller  # Targets all hosts defined in your Ansible inventory
+  gather_facts: false # Optional: Set to true if you need facts, but not for a simple ping
+  tasks:
+    - name: Ensure connectivity using Ansible Ping
+      ansible.builtin.ping:
