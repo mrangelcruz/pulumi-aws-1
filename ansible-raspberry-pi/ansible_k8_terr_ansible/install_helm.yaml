@@ -1,0 +1,28 @@
+---
+- name: Install Helm on Ubuntu
+  hosts: k8_controller
+  become: yes
+
+  vars:
+    helm_version: "v3.15.0"
+    helm_arch: "linux-amd64"
+
+  tasks:
+    - name: Download Helm archive
+      ansible.builtin.get_url:
+        url: "https://get.helm.sh/helm-{{ helm_version }}-{{ helm_arch }}.tar.gz"
+        dest: "/tmp/helm-{{ helm_version }}.tar.gz"
+        owner: root
+        group: root
+        mode: '0644'
+        force: yes # <-- This is the key change
+      notify: Unarchive Helm binary
+
+  handlers:
+    - name: Unarchive Helm binary
+      ansible.builtin.unarchive:
+        src: "/tmp/helm-{{ helm_version }}.tar.gz"
+        dest: "/usr/local/bin/"
+        remote_src: yes
+        extra_opts:
+          - --strip-components=1
