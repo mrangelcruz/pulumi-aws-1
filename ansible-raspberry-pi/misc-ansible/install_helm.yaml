@@ -1,0 +1,41 @@
+---
+- name: Install Helm on Ubuntu
+  hosts: k8_controller # Replace with your target host group or IP
+  become: yes # Run tasks with sudo privileges
+
+  vars:
+    helm_version: "v3.17.4" # Specify the desired Helm version
+    helm_arch: "linux-amd64" # Adjust for your system's architecture (e.g., linux-arm64)
+
+  tasks:
+    - name: Run a shell command and capture output
+      ansible.builtin.shell: "echo \"url: https://get.helm.sh/helm-{{ helm_version }}-{{ helm_arch }}.tar.gz\""      
+      register: shell_output
+
+    - name: Display the shell command output
+      ansible.builtin.debug:
+        msg: "{{ shell_output.stdout }}"
+
+    - name: Download Helm archive
+      ansible.builtin.get_url:
+        url: "https://get.helm.sh/helm-{{ helm_version }}-{{ helm_arch }}.tar.gz"
+        dest: "/tmp/helm-{{ helm_version }}.tar.gz"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Unarchive Helm binary
+
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
+
+    - name: Delete Helm archive
+      ansible.builtin.file:
+        path: "/tmp/helm-{{ helm_version }}.tar.gz"
+        state: absent
+
+  handlers:
+  - name: Unarchive Helm binary
+    ansible.builtin.unarchive:
+      src: "/tmp/helm-{{ helm_version }}.tar.gz"
+      dest: "/usr/local/bin/"
+      remote_src: yes
