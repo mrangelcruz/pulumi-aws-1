@@ -1,0 +1,67 @@
+---
+- name: Join Kubernetes Worker Node
+  hosts: workers
+  become: true
+
+  vars:
+    kubelet_bin_path: /usr/local/bin/kubelet
+    node_ip: "{{ ansible_host }}"
+    containerd_socket: unix:///run/containerd/containerd.sock
+
+  tasks:
+    - name: Ensure systemd drop-in directory exists
+      file:
+        path: /etc/systemd/system/kubelet.service.d
+        state: directory
+        mode: '0755'
+
+    - name: Configure kubelet ExecStart override
+      copy:
+        dest: /etc/systemd/system/kubelet.service.d/99-custom.conf
+        content: |
+        [Service]
+        ExecStart=
+        ExecStart={{ kubelet_bin_path }} $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS
+
+    - name: Clean up deprecated flags in /etc/default/kubelet
+      lineinfile:
+        path: /etc/default/kubelet
+        regexp: '--container-runtime'
+        state: absent
+      ignore_errors: true
+
+    - name: Set fallback kubelet args
+      copy:
+        dest: /etc/default/kubelet
+        content: 'KUBELET_EXTRA_ARGS="--fail-swap-on=false"'
+
+    - name: Clean up deprecated flags in 10-containerd.conf
+      copy:
+        dest: /etc/systemd/system/kubelet.service.d/10-containerd.conf
+        content: |
+        [Service]
+        Environment="KUBELET_EXTRA_ARGS=--fail-swap-on=false"
+
+    - name: Set containerRuntimeEndpoint in kubelet config
+      replace:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^containerRuntimeEndpoint:.*'
+        replace: 'containerRuntimeEndpoint: "{{ containerd_socket }}"'
+
+    - name: Reload systemd
+      command: systemctl daemon-reload
+    - name: Restart kubelet
+      service:
+        name: kubelet
+        state: restarted
+    - name: Wait for kubelet to submit CSR
+      pause:
+        seconds: 60
+
+    - name: Reminder to approve CSR
+      debug:
+        msg: |
+        ✅ Kubelet restarted. Now run on control plane:
+        kubectl get csr --kubeconfig=/etc/kubernetes/admin.conf
+        Then approve with:
+        kubectl certificate approve <csr-name>

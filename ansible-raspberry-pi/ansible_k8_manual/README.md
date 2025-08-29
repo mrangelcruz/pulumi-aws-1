@@ -600,7 +600,9 @@ Here’s a full playbook that:
 - Restarts services to trigger CSR submission
 
 📁 File: join-worker.yml
+
 yaml
+
     ---
     - name: Join Kubernetes Worker Node
     hosts: workers
@@ -746,3 +748,258 @@ You can also run this as a CronJob or a sidecar in your control plane if you wan
 
 🧠 Smarter Option: Use a Validating Webhook
 For production-grade clusters, consider using a validating admission webhook or a custom controller with logic to verify node identity before approval.
+
+### MISC NOTES
+
+Disable Swap: Kubernetes requires swap to be disabled.
+
+Code
+
+    sudo swapoff -a
+    sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+---
+Enable Kernel Modules and Configure sysctl.
+
+Code
+
+    cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+    overlay
+    br_netfilter
+    EOF
+
+    sudo modprobe overlay
+    sudo modprobe br_netfilter
+
+    cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+    net.bridge.bridge-nf-call-iptables = 1
+    net.bridge.bridge-nf-call-ip6tables = 1
+    net.ipv4.ip_forward = 1
+    EOF
+
+    sudo sysctl --system
+---
+Install necessary packages and add Docker's GPG key and repository:
+
+Code
+
+    sudo apt-get update -y
+    sudo apt-get install ca-certificates curl gnupg lsb-release -y
+    sudo mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+---
+Install Containerd and configure its cgroup driver:
+
+Code
+
+    sudo apt-get update -y
+    sudo apt-get install containerd.io -y
+    sudo containerd config default | sudo tee /etc/containerd/config.toml
+    sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+    sudo systemctl restart containerd
+---
+Add Kubernetes apt repository.
+Code
+
+    sudo apt-get update
+    sudo apt-get install -y apt-transport-https ca-certificates curl
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+Note: <br>
+Replace v1.29 with your desired Kubernetes version if different. Install the Kubernetes components.
+
+---
+    sudo apt-get update
+    sudo apt-get install -y kubelet kubeadm kubectl
+---
+Hold the packages to prevent automatic updates:
+Code
+
+    sudo apt-mark hold kubelet kubeadm kubectl
+
+---
+JOIN:<br>
+
+    kubeadm join 192.168.1.100:6443 --token uskjn0.6j6cpeywo3jlq5of --discovery-token-ca-cert-hash sha256:f9ef604bef57dc5a5550b58ffd6b102e3932d6aad5ce28d9a450195857b29415
+
+RESULTS:<br>
+>kubeadm join The system verification failed CONFIG_AUFS_FS: not set - Required for aufs CONFIG_CGROUP_HUGETLB: not set - Required for hugetlb cgroup. CGROUPS_MEMORY: missing CGROUPS_HUGETLB: missing
+
+
+[WARNING SystemVerification]: missing optional cgroups: hugetlb
+error execution phase preflight: [preflight] Some fatal errors occurred:
+	[ERROR SystemVerification]: missing required cgroups: memory
+[preflight] If you know what you are doing, you can make a check non-fatal with `--ignore-preflight-errors=...
+
+Solution:<br>
+>Enable Memory Cgroups on Raspberry Pi OS
+
+Edit the boot configuration: Open the boot command line file:
+Add these parameters to the end of the line (don’t create a new line):
+
+sudo nano /boot/cmdline.txt:<br>
+>cgroup_enable=memory cgroup_memory=1
+
+    sudo reboot
+
+Verify cgroups are enabled: After reboot, check:
+
+    mount | grep cgroup
+
+result:<BR>
+cgroup2 on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot)
+
+Rerun the join command:
+pi@raspberrypi-1:~ $ 
+
+    sudo kubeadm join 192.168.1.100:6443 --token uskjn0.6j6cpeywo3jlq5of --discovery-token-ca-cert-hash sha256:f9ef604bef57dc5a5550b58ffd6b102e3932d6aad5ce28d9a450195857b29415
+
+Fix:
+
+    sudo systemctl status kubelet
+
+    sudo journalctl -u kubelet -xe > tmp_log.txt
+
+"command failed" err="failed to run Kubelet: running with swap on is not supported, please disable swap!
+
+> Code
+
+    sudo swapoff -a
+    sudo nano /etc/fstab
+
+> Look for a line that references swap, something like:
+
+    /swapfile swap swap defaults 0 0
+
+> dynamic swapping?
+
+    sudo swapon --show
+
+CLEANUP kubeadm join first before rerunning:
+Code
+
+    sudo kubeadm reset
+    sudo systemctl stop kubelet
+
+Then verify port 10250 is free:
+
+    sudo lsof -i :10250
+
+Remove Leftover files:
+
+    sudo rm -rf /etc/kubernetes
+    sudo rm -rf /var/lib/kubelet
+    sudo rm -rf /var/lib/etcd
+    sudo rm -rf ~/.kube
+    sudo swapoff -a
+    sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+
+On Master server:
+
+    k get nodes
+results:<br>
+raspberrypi-1              NotReady   <none>          9m54s   v1.29.15
+
+Step 1: Check Node Conditions<br>
+open /run/systemd/resolve/resolv.conf: no such file or directory
+
+    kubectl describe node raspberrypi-1
+
+results: <br>
+open /run/systemd/resolve/resolv.conf: no such file or directory
+
+Fix attempt:
+On your Raspberry Pi node, run:
+
+    sudo ln -sf /etc/resolv.conf /run/systemd/resolve/resolv.conf
+result: this fails
+
+create it then in raspberry pi:
+
+    sudo mkdir -p /run/systemd/resolve
+    sudo ln -sf /etc/resolv.conf /run/systemd/resolve/resolv.conf
+    sudo systemctl restart kubelet
+
+SUCCESS!!
+
+TEST:
+deploy nginx to k8
+
+> create hello-world1.yaml
+
+    ---
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+    name: nginx-config-1
+    namespace: default
+    data:
+    index.html: |
+        <html>
+        <h2>Hello world 1!!</h2>
+        </html>
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+    name: nginx-deployment-1
+    spec:
+    replicas: 2
+    selector:
+        matchLabels:
+        app: nginx
+    template:
+        metadata:
+        labels:
+            app: nginx
+            testService: service1
+        spec:
+        containers:
+        - name: nginx
+            image: nginx
+            ports:
+            - containerPort: 80
+            volumeMounts:
+            - name: nginx-index-config
+            mountPath: /usr/share/nginx/html
+        volumes:
+        - name: nginx-index-config
+            configMap:
+            name: nginx-config-1
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+    name: nginx-service
+    spec:
+    selector:
+        app: nginx
+        testService: service1
+    type: NodePort
+    ports:
+    - name: http
+        port: 80
+        targetPort: 80
+        nodePort: 30081
+
+---
+kubectl create -f hello-world1.yml
+k get all
+kubectl get pods -o wide
+
+access via the web:
+http://192.168.1.248:30081/
+________________________________________________________________
+
+If you're up for it, we could:
+
+Deploy a test pod to verify networking
+
+Set up metrics or dashboards (like Prometheus + Grafana)
+
+Explore taints and tolerations if you want to control scheduling
+
+Or even start building something fun on your Pi cluster—like a home automation app or a mini web service
+
+Let me know what direction you’re thinking, and I’ll help you take the next step!
