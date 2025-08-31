@@ -47,6 +47,16 @@ If using containerd:
     sudo rm -rf /var/lib/docker
     sudo rm -rf /var/lib/containerd
 
+__6> check /etc/apt/sources.list.d/__
+<br>
+Ensure docker.list and kubernetes.list do not exist.  Empty out the directory if needed.
+
+Check other files and rm:
+<br>
+sudo rm /etc/apt/trusted.gpg.d/kubernetes-release.gpg
+<br>
+sudo rm /etc/apt/keyrings/docker.gpg
+
 __6> reboot__
 
     sudo reboot
@@ -120,10 +130,12 @@ Code
 
 __NOTE:__<br>
 For worker install (raspberry pi), ensure you change in the code below:<br>
-https://download.docker.com/linux/ubuntu 
+
+https://pkgs.k8s.io/core:/stable:/v1.33/ubuntu/ 
 
 TO:<br>
-https://download.docker.com/linux/debian
+
+https://pkgs.k8s.io/core:/stable:/v1.33/debian/
 
 Code (for ubuntu)
 
@@ -131,28 +143,46 @@ Code (for ubuntu)
         sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
         sudo mkdir -p /etc/apt/keyrings
 
-        #1 Add the Kubernetes GPG key
-        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/kubernetes-release.gpg
+        # SET ENVIRONMENT VARIABLE AS ubuntu (controller) or debian (worker..raspbian?)
 
-        #2 Add the Kubernetes repository
-        echo "deb [signed-by=/etc/apt/trusted.gpg.d/kubernetes-release.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+        export my_os="ubuntu"
+        export my_k8_version="v.133"
 
-        #3 Add the Docker GPG key
-        sudo apt-get install -y ca-certificates curl gnupg lsb-release
-        sudo mkdir -m 0755 -p /etc/apt/keyrings
-        curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        echo $my_os
+        echo $my_k8_version
+        
+> 1. Prepare Your System
 
-        #4 Add the Docker repository
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt-get update
+        sudo apt-get install -y apt-transport-https ca-certificates curl
+        sudo swapoff -a  # Kubernetes requires swap to be disabled
 
-        #5 Update the package list
-        sudo apt update
+> 2. Install Container Runtime (e.g., containerd)
 
-        #6 Install containerd
-        sudo apt install -y containerd.io
+        sudo apt-get install -y containerd
 
-        #7 generates a default configuration file for Containerd
-        sudo containerd config default | sudo tee /etc/containerd/config.toml
+> 3. Add Kubernetes Repo and Install Tools
+
+        sudo rm /etc/apt/sources.list.d/kubernetes.list
+        echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+        echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+
+> 4. Update Package Lists
+
+        sudo apt-get update
+
+> 5.Install kubernetes tools
+
+        sudo apt-get install -y kubelet kubeadm kubectl
+        sudo apt-mark hold kubelet kubeadm kubectl
+
+
+        #7 generates a default configuration file for Containerd >> Not needed?
+        #sudo containerd config default | sudo tee /etc/containerd/config.toml
         
         #8 Change the SystemdCgroup setting from false to true
         sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
@@ -161,40 +191,41 @@ Code (for ubuntu)
         sudo systemctl restart containerd
         sudo systemctl enable containerd
 
+        #10 start the cluster:
+        sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+
+
 __NOTE:__ <br>
 
-    sudo cat /etc/apt/sources.list.d/docker.list 
+Since I am using containerd, I don't need to add the steps to add the Docker GPG and Docker repository, correct?
+
+Exactly — you're spot on. Since you're using containerd as your container runtime, there's no need to add Docker's GPG key or repository. Kubernetes supports containerd natively, and it's actually the preferred runtime for many production setups due to its simplicity and tighter integration with Kubernetes.
+
+Here’s what that means for you:
+
+    ✅ You can skip any steps involving https://download.docker.com or installing docker-ce.
+
+    ✅ No need to configure Docker daemon settings like cgroupDriver.
+
+    ✅ containerd works seamlessly with kubeadm and supports the CRI (Container Runtime Interface) out of the box.
+
+### Install Calico
+
+It's quite common to apply the network plugin afterward.
+
+> a. Make sure your kubectl is configured:
+
+    mkdir -p $HOME/.kube
+    sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+    sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 
-The docker.list above may be problematic (it may point to ubuntu or raspian depending on what you echo from above during Google search).  What works is this:
+> b. Apply the Calico manifest:
 
-![debian_docker.list](images/debian_docker.list.png)
-
-NOTE:<br>
-cat /etc/os-release ... this might show 'noble' or 'bookworm' ... adjust docker.list to whatever os-release shows
-
-### Add Kubernetes APT Repository.
-
-Code (for deb, adjust for ubuntu)
-
-	# Add the Kubernetes GPG key (this part is correct)
-
-    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-
-    # Add the correct Kubernetes repository
-
-    echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+    kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 
-### Install kubeadm, kubelet, and kubectl:
-
-Code
-
-    sudo apt install -y kubelet kubeadm kubectl
-    sudo apt-mark hold kubelet kubeadm kubectl
-
-
-### Initialize Kubernetes Control Plane:
+### Error: Initializing Kubernetes Control Plane:
 Initialize the Cluster: Replace <your_pod_cidr> with a suitable CIDR range (e.g., 10.244.0.0/16 for Calico).
 
 Code
@@ -248,20 +279,6 @@ NOTE: To create the join commands again, invoke:<br>
 ``` kubeadm token create --print-join-command ```
 <br> The above is required if adding new worker nodes at a later time
 
-### Configure kubectl.
-
-Code
-
-    mkdir -p $HOME/.kube
-    sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-    sudo chown $(id -u):$(id -g) $HOME/.kube/config
-
-### Install a Pod Network Add-on:
-
-Deploy a Network Plugin: Calico is a common choice.
-Code
-
-    kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 
 ## If your controller server changes IP, you need to re-configure:
@@ -321,6 +338,43 @@ Code
 All core Kubernetes pods (kube-apiserver, kube-controller-manager, kube-scheduler, etcd, coredns) and the network plugin pods should be running.
 
 ![pods_running](images/pods_running.png)
+
+
+## Anytime you do a kubeadm init, it is a good idea to reapply your kubeconfig file:
+
+
+> Reconfigure kubectl to Use the Correct Kubeconfig
+
+    mkdir -p $HOME/.kube
+    sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+    sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+## SETUP Ubuntu VBox (workers)
+
+1> Set up the VBox Networking
+
+Chose the Name for the WiFi
+
+![under_name](images/under_name.png)
+
+Choices:
+![choices](images/which_to_choose.png)
+
+So if you're currently on Wi-Fi (which is most common on laptops), select the Wireless LAN Wifi 6 PCI-E NIC in the Bridged Adapter settings.
+
+1. Go to VirtualBox → Settings → Network → Adapter 1.
+
+2. Set Attached to: Bridged Adapter.
+
+3. Set Name: Realtek 8851BE Wireless LAN Wifi 6 PCI-E NIC.
+
+4. Click OK, then start your VM.
+
+5. Once it boots up, run:
+
+        ip addr show
+
+
 
 ## SETUP Raspberry Pi (workers)
 server: 192.168.1.248 <br>
