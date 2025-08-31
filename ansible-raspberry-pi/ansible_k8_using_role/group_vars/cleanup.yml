@@ -1,0 +1,6 @@
+# Variables specifically for cleanup_k8s.yml
+
+cleanup_kubernetes_packages: true   # Remove kubeadm/kubectl/kubelet
+cleanup_containerd: true            # Remove container runtime
+cleanup_calico: true                # Remove Calico CNI manifests
+cleanup_etcd_data: true             # Remove etcd / Kubernetes data directories

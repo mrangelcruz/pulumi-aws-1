@@ -1,0 +1,8 @@
+---
+# Default variables for Kubernetes setup
+
+cni_plugin: calico               # Options: calico, flannel, none
+pod_network_cidr: "192.168.0.0/16"
+install_containerd: true
+init_control_plane: false
+join_workers: false

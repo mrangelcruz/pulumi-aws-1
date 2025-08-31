@@ -1,0 +1,37 @@
+---
+# roles/k8_setup/tasks/k8s_binaries.yml
+
+- name: "Get latest stable Kubernetes version"
+  ansible.builtin.uri:
+    url: https://dl.k8s.io/release/stable.txt
+    return_content: yes
+  register: k8s_version
+
+- name: "Set Kubernetes version variable"
+  set_fact:
+    kube_version: "{{ k8s_version.content | trim }}"
+
+- name: "Download kubelet binary"
+  get_url:
+    url: "https://dl.k8s.io/release/{{ kube_version }}/bin/linux/amd64/kubelet"
+    dest: /usr/local/bin/kubelet
+    mode: '0755'
+
+- name: "Download kubeadm binary"
+  get_url:
+    url: "https://dl.k8s.io/release/{{ kube_version }}/bin/linux/amd64/kubeadm"
+    dest: /usr/local/bin/kubeadm
+    mode: '0755'
+
+- name: "Download kubectl binary"
+  get_url:
+    url: "https://dl.k8s.io/release/{{ kube_version }}/bin/linux/amd64/kubectl"
+    dest: /usr/local/bin/kubectl
+    mode: '0755'
+
+- name: "Verify Kubernetes binaries"
+  command: "{{ item }} version --client"
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl

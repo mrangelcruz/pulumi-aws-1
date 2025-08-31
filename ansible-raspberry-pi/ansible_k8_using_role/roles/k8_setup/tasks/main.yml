@@ -1,0 +1,10 @@
+---
+# roles/k8_setup/tasks/main.yml
+
+- name: "[Setup] Configure control plane"
+  include_tasks: control_plane.yml
+  when: init_control_plane
+
+- name: "[Setup] Join worker nodes"
+  include_tasks: workers.yml
+  when: join_workers

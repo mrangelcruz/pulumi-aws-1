@@ -1,0 +1,54 @@
+---
+# cleanup_k8s.yml
+# Run this only when you intend to wipe Kubernetes from nodes.
+
+- name: "Cleanup Kubernetes from all nodes"
+  hosts: all
+  become: yes
+  gather_facts: yes
+  tasks:
+
+    - name: "[Cleanup] Reset kubeadm if installed"
+      command: kubeadm reset -f
+      ignore_errors: yes
+      tags: cleanup
+
+    - name: "[Cleanup] Remove Kubernetes packages"
+      apt:
+        name:
+          - kubeadm
+          - kubelet
+          - kubectl
+        state: absent
+        purge: yes
+      ignore_errors: yes
+      tags: cleanup
+
+    - name: "[Cleanup] Autoremove unused packages"
+      apt:
+        autoremove: yes
+      ignore_errors: yes
+      tags: cleanup
+
+    - name: "[Cleanup] Remove container runtime"
+      apt:
+        name:
+          - containerd
+        state: absent
+        purge: yes
+      ignore_errors: yes
+      tags: cleanup
+
+    - name: "[Cleanup] Remove leftover directories safely"
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/kubernetes
+        - /var/lib/kubelet
+        - /var/lib/etcd
+        - /var/run/kubernetes
+        - /etc/cni
+        - /var/lib/cni
+      ignore_errors: yes
+      tags: cleanup

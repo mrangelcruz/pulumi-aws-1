@@ -1,0 +1,31 @@
+# group_vars/all.yml
+
+# Whether to clean up old Kubernetes packages and CNI
+cleanup_kubernetes_packages: true
+cleanup_calico: true
+
+# Install and configure containerd
+install_containerd: true
+
+# Reinitialize Kubernetes control plane if already exists
+reinstall_kubernetes: true
+init_control_plane: true
+
+# Kubernetes version to download (must match available binary releases on dl.k8s.io)
+kube_version: "v1.28.0"  # ✅ Use a stable version like v1.28.0, not v1.33.5
+
+# Choose CNI plugin: calico, flannel, or none
+cni_plugin: calico
+
+# Pod network CIDR based on CNI plugin
+pod_network_cidr: >-
+  {% if cni_plugin == 'calico' %}
+    192.168.0.0/16
+  {% elif cni_plugin == 'flannel' %}
+    10.244.0.0/16
+  {% else %}
+    ""
+  {% endif %}
+
+# Node join command token TTL (for workers)
+kubeadm_token_ttl: "24h"

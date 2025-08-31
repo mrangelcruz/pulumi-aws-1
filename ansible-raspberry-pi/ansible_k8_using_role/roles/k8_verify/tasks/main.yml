@@ -1,0 +1,57 @@
+---
+# roles/k8_verify/tasks/main.yml
+
+- name: "Set KUBECONFIG environment variable for root"
+  set_fact:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+
+- name: "Wait for all nodes to be Ready"
+  shell: |
+    for i in {1..20}; do
+      READY=$(/usr/bin/kubectl --kubeconfig={{ kubeconfig_path }} get nodes --no-headers | grep -c ' Ready ')
+      TOTAL=$(/usr/bin/kubectl --kubeconfig={{ kubeconfig_path }} get nodes --no-headers | wc -l)
+      if [ "$READY" -eq "$TOTAL" ]; then
+        echo "All nodes are Ready!"
+        exit 0
+      fi
+      echo "Waiting for nodes to be Ready..."
+      sleep 10
+    done
+    echo "Timeout: some nodes are not Ready"
+    /usr/bin/kubectl --kubeconfig={{ kubeconfig_path }} get nodes
+    exit 1
+  register: node_check
+  failed_when: node_check.rc != 0
+
+- name: "Show cluster nodes"
+  shell: /usr/bin/kubectl --kubeconfig={{ kubeconfig_path }} get nodes -o wide
+  register: nodes_output
+
+- name: "Print cluster node status"
+  debug:
+    msg: "{{ nodes_output.stdout_lines }}"
+
+- name: "Wait for all kube-system pods to be Running"
+  shell: |
+    for i in {1..30}; do
+      NOT_RUNNING=$(/usr/bin/kubectl --kubeconfig={{ kubeconfig_path }} get pods -n kube-system --no-headers | grep -v 'Running\|Completed' | wc -l)
+      if [ "$NOT_RUNNING" -eq 0 ]; then
+        echo "All kube-system pods are Running!"
+        exit 0
+      fi
+      echo "Waiting for kube-system pods to be Running..."
+      sleep 10
+    done
+    echo "Timeout: some kube-system pods are not Running"
+    /usr/bin/kubectl --kubeconfig={{ kubeconfig_path }} get pods -n kube-system
+    exit 1
+  register: pods_check
+  failed_when: pods_check.rc != 0
+
+- name: "Show kube-system pod status"
+  shell: /usr/bin/kubectl --kubeconfig={{ kubeconfig_path }} get pods -n kube-system -o wide
+  register: pods_output
+
+- name: "Print kube-system pod status"
+  debug:
+    msg: "{{ pods_output.stdout_lines }}"

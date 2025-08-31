@@ -1,0 +1,14 @@
+---
+# roles/k8_setup/tasks/cni.yml
+
+- name: "[CNI] Apply CNI plugin"
+  shell: |
+    kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f {{ 'https://docs.projectcalico.org/manifests/calico.yaml' if cni_plugin=='calico' else 'https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml' }}
+  register: cni_result
+
+- name: "[CNI] Log CNI plugin result"
+  debug:
+    msg: |
+      CNI plugin "{{ cni_plugin }}" applied successfully.
+      Output:
+      {{ cni_result.stdout }}

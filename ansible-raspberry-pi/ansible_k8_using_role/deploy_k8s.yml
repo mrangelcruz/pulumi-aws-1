@@ -1,0 +1,21 @@
+---
+# deploy_k8s.yml
+- name: "Deploy Kubernetes cluster"
+  hosts: control_plane
+  become: yes
+  vars_files:
+    - group_vars/all.yml
+  tasks:
+
+    - name: "Include control plane setup"
+      include_tasks: roles/k8_setup/tasks/control_plane.yml
+
+- name: "Worker node setup (future)"
+  hosts: worker_nodes
+  become: yes
+  vars_files:
+    - group_vars/all.yml
+  tasks:
+    - name: "Placeholder for worker node setup"
+      debug:
+        msg: "Worker node setup tasks will go here later."

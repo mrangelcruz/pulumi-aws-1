@@ -1,0 +1,22 @@
+---
+# roles/k8_setup/tasks/preflight.yml
+
+- name: "[Pre-flight] Check Kubernetes binaries"
+  stat:
+    path: "{{ item }}"
+  loop:
+    - /usr/bin/kubectl
+    - /usr/bin/kubeadm
+    - /usr/bin/kubelet
+  register: k8_bins
+  changed_when: false
+
+- name: "[Pre-flight] Fail if any Kubernetes binaries are missing"
+  fail:
+    msg: |
+      One or more required Kubernetes binaries are missing:
+      - kubectl
+      - kubeadm
+      - kubelet
+      Make sure Kubernetes packages were installed correctly.
+  when: "'False' in k8_bins.results | map(attribute='stat.exists') | list"

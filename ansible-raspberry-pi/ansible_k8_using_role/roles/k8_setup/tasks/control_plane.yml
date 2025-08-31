@@ -1,0 +1,121 @@
+---
+# roles/k8_setup/tasks/control_plane.yml
+
+- name: "[Control Plane] Install required packages"
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: yes
+
+- name: "[Control Plane] Install container runtime"
+  apt:
+    name: containerd
+    state: present
+    update_cache: yes
+  when: install_containerd
+
+- name: "[Control Plane] Configure containerd cgroup driver"
+  shell: |
+    mkdir -p /etc/containerd
+    containerd config default | sed 's/SystemdCgroup = false/SystemdCgroup = true/' > /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
+  when: install_containerd
+
+- name: "[Control Plane] Restart containerd"
+  systemd:
+    name: containerd
+    state: restarted
+    enabled: yes
+  when: install_containerd
+
+# -----------------------
+# Download Kubernetes binaries
+# -----------------------
+- name: "[Control Plane] Download kubeadm binary"
+  get_url:
+    url: "https://dl.k8s.io/release/{{ kube_version }}/bin/linux/amd64/kubeadm"
+    dest: "/usr/local/bin/kubeadm"
+    mode: "0755"
+    force: yes
+
+- name: "[Control Plane] Download kubelet binary"
+  get_url:
+    url: "https://dl.k8s.io/release/{{ kube_version }}/bin/linux/amd64/kubelet"
+    dest: "/usr/local/bin/kubelet"
+    mode: "0755"
+    force: yes
+
+- name: "[Control Plane] Download kubectl binary"
+  get_url:
+    url: "https://dl.k8s.io/release/{{ kube_version }}/bin/linux/amd64/kubectl"
+    dest: "/usr/local/bin/kubectl"
+    mode: "0755"
+    force: yes
+
+- name: "[Control Plane] Verify Kubernetes binaries"
+  shell: |
+    kubeadm version
+    kubelet --version
+    kubectl version --client
+  register: kube_check
+  failed_when: kube_check.rc != 0
+
+# -----------------------
+# Initialize Kubernetes
+# -----------------------
+- name: "[Control Plane] Initialize Kubernetes control plane"
+  command: kubeadm init --pod-network-cidr={{ pod_network_cidr }}
+  args:
+    creates: /etc/kubernetes/admin.conf
+  when: init_control_plane
+
+- name: "[Control Plane] Copy kubeconfig for root"
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: yes
+    owner: root
+    group: root
+    mode: 0600
+  when: init_control_plane
+
+# -----------------------
+# Apply CNI plugin
+# -----------------------
+- name: "[Control Plane] Apply CNI plugin"
+  shell: |
+    kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f {{ 'https://docs.projectcalico.org/manifests/calico.yaml' if cni_plugin=='calico' else 'https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml' }}
+  args:
+    warn: false
+  register: cni_result
+  changed_when: cni_result.rc == 0
+  failed_when: cni_result.rc != 0
+  when: init_control_plane and cni_plugin != "none"
+
+# -----------------------
+# Wait until control plane is ready
+# -----------------------
+- name: "[Control Plane] Wait until Kubernetes control plane is ready"
+  shell: |
+    for i in {1..20}; do
+      READY=$(kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes --no-headers 2>/dev/null | grep -c ' Ready ')
+      TOTAL=$(kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes --no-headers 2>/dev/null | wc -l)
+      if [ "$READY" -eq "$TOTAL" ] && [ "$TOTAL" -gt 0 ]; then
+        echo "All nodes are Ready!"
+        exit 0
+      fi
+      echo "Waiting for nodes to be Ready..."
+      sleep 10
+    done
+    echo "Timeout: some nodes are not Ready"
+    kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes || true
+    exit 1
+  register: control_plane_ready
+  failed_when: control_plane_ready.rc != 0
+  when: init_control_plane
