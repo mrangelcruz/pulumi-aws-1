@@ -1,3 +1,7 @@
+- name: Render and debug Grafana ConfigMap
+  debug:
+    msg: "{{ lookup('template', role_path + '/files/grafana-datasource-configmap.yml.j2') }}"
+
 - name: Create Grafana namespace
   kubernetes.core.k8s:
     api_version: v1
