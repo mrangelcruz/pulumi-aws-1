@@ -1,0 +1,4 @@
+grafana_namespace: prometheus
+grafana_image: grafana/grafana:latest
+grafana_node_port: 32000
+prometheus_url: http://prometheus:9090

@@ -4,7 +4,8 @@
   gather_facts: no
 
   vars:
-    prometheus_namespace: monitoring
+    prometheus_namespace: prometheus
+    grafana_namespace: prometheus
     prometheus_configmap_name: prometheus-config
     prometheus_scrape_interval: 15s
     scrape_configs:
@@ -13,4 +14,5 @@
           - targets: ['node1:9100', 'node2:9100']
 
   roles:
-    - role: prometheus
+    - prometheus
+    - grafana
