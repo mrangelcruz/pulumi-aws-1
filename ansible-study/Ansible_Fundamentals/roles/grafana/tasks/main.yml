@@ -1,6 +1,6 @@
 - name: Render and debug Grafana ConfigMap
   debug:
-    msg: "{{ lookup('template', role_path + '/templates/grafana-datasource-configmap.yml.j2') }}"
+    msg: "{{ lookup('template', role_path + '/templates/grafana-dashboard-configmap.yml.j2.yml.j2') }}"
   tags: debug_configmap
 
 - name: Create Grafana namespace
