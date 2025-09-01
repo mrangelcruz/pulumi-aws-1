@@ -1,7 +1,7 @@
-- name: Deploy Prometheus to Kubernetes
+- name: Deploy Grafana and Prometheus stack
   hosts: control_plane
   become: yes
-  gather_facts: no
+  gather_facts: yes
 
   vars:
     prometheus_namespace: prometheus

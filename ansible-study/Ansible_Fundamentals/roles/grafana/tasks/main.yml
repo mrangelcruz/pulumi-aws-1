@@ -3,6 +3,20 @@
     msg: "{{ lookup('template', role_path + '/templates/grafana-dashboard-configmap.yml.j2') }}"
   tags: debug_configmap
 
+
+
+- name: Set rendered Grafana ConfigMap
+  set_fact:
+    rendered_config: "{{ lookup('template', role_path + '/templates/grafana-dashboard-configmap.yml.j2') }}"
+  tags: debug_configmap
+
+- name: Write rendered config to timestamped file
+  copy:
+    content: "{{ rendered_config }}"
+    dest: "/tmp/rendered_config_{{ ansible_date_time.iso8601 }}.yaml"
+  delegate_to: localhost
+
+
 - name: Create Grafana namespace
   kubernetes.core.k8s:
     api_version: v1
