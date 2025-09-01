@@ -15,7 +15,12 @@
     content: "{{ rendered_config }}"
     dest: "/tmp/rendered_config_{{ ansible_date_time.iso8601 }}.yaml"
   delegate_to: localhost
+  tags: debug_configmap
 
+- name: Show rendered config filename
+  debug:
+    msg: "/tmp/rendered_config_{{ ansible_date_time.iso8601 }}.yaml"
+  tags: debug_configmap
 
 - name: Create Grafana namespace
   kubernetes.core.k8s:
