@@ -1,0 +1,10 @@
+galaxy_info:
+  author: Angel Cruz
+  description: Install Prometheus on Kubernetes cluster
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+dependencies: []

@@ -1,0 +1,16 @@
+- name: Deploy Prometheus to Kubernetes
+  hosts: control_plane
+  become: yes
+  gather_facts: no
+
+  vars:
+    prometheus_namespace: monitoring
+    prometheus_configmap_name: prometheus-config
+    prometheus_scrape_interval: 15s
+    scrape_configs:
+      - job_name: 'node-exporter'
+        static_configs:
+          - targets: ['node1:9100', 'node2:9100']
+
+  roles:
+    - role: prometheus

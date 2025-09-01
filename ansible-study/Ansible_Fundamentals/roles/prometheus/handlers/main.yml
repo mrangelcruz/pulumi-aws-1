@@ -1,0 +1,6 @@
+- name: Restart Prometheus
+  kubernetes.core.k8s:
+    state: restarted
+    namespace: "{{ prometheus_namespace }}"
+    kind: Deployment
+    name: prometheus

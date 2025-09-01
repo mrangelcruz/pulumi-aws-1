@@ -1,0 +1,24 @@
+---
+- name: Create Prometheus Namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: prometheus
+
+- name: Apply Prometheus ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', 'files/prometheus-configmap.yml') | from_yaml }}"
+
+- name: Apply Prometheus Deployment
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', 'files/prometheus-deployment.yml') | from_yaml }}"
+
+- name: Apply Prometheus Service
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', 'files/prometheus-service.yml') | from_yaml }}"

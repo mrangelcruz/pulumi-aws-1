@@ -1,0 +1,4 @@
+---
+prometheus_namespace: prometheus
+prometheus_configmap_name: prometheus-config
+prometheus_scrape_interval: 15s

@@ -1,0 +1,23 @@
+---
+- name: Install kube-prometheus-stack using Helm
+  hosts: k8_controller
+  become: yes
+
+  tasks:
+    - name: Add Prometheus Helm repository
+      ansible.builtin.command: helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+      environment:
+        KUBECONFIG: /home/{{ ansible_user }}/.kube/config
+      changed_when: true
+
+    - name: Update Helm repositories
+      ansible.builtin.command: helm repo update
+      environment:
+        KUBECONFIG: /home/{{ ansible_user }}/.kube/config
+      changed_when: true
+
+    - name: Install kube-prometheus-stack
+      ansible.builtin.command: helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace
+      environment:
+        KUBECONFIG: /home/{{ ansible_user }}/.kube/config
+      changed_when: true
