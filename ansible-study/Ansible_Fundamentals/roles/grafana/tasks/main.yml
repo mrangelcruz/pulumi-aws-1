@@ -1,68 +1,79 @@
-- name: Render and debug Grafana ConfigMap
-  debug:
-    msg: "{{ lookup('template', role_path + '/templates/grafana-dashboard-configmap.yml.j2') }}"
-  tags: debug_configmap
-
-
-
 - name: Set rendered Grafana ConfigMap
   set_fact:
     rendered_config: "{{ lookup('template', role_path + '/templates/grafana-dashboard-configmap.yml.j2') }}"
   tags: debug_configmap
 
-- name: Write rendered config to timestamped file
-  copy:
-    content: "{{ rendered_config }}"
-    dest: "/tmp/rendered_config_{{ ansible_date_time.iso8601 }}.yaml"
-  delegate_to: localhost
-  tags: debug_configmap
-
-- name: Show rendered config filename
+- name: Confirm rendered_config is defined
   debug:
-    msg: "/tmp/rendered_config_{{ ansible_date_time.iso8601 }}.yaml"
+    msg: "rendered_config is defined"
+  when: rendered_config is defined
   tags: debug_configmap
 
-- name: Create Grafana namespace
-  kubernetes.core.k8s:
-    api_version: v1
-    kind: Namespace
-    name: "{{ grafana_namespace }}"
-    state: present
 
-- name: Apply Grafana dashboard ConfigMap
-  kubernetes.core.k8s:
-    definition: "{{ lookup('template', 'grafana-dashboard-configmap.yml.j2') | from_yaml }}"
-    state: present
+- name: Render and debug Grafana ConfigMap
+  debug:
+    msg: "{{ rendered_config }}"
+  when: ansible_verbosity >= 1
 
-- name: Apply Grafana datasource ConfigMap
-  kubernetes.core.k8s:
-    definition: "{{ lookup('file', role_path + '/files/grafana-datasource-configmap.yml') | from_yaml }}"
-    state: present
 
-- name: Create Grafana PVC
-  kubernetes.core.k8s:
-    src: "{{ role_path }}/files/grafana-pvc.yml"
-    state: present
+- name: Debug rendered_config
+  debug:
+    var: rendered_config
+  tags: debug_configmap
 
-- name: Deploy Grafana
-  kubernetes.core.k8s:
-    src: "{{ role_path }}/templates/grafana-deployment.yml.j2"
-    state: present
+# - name: Write rendered config to timestamped file
+#   copy:
+#     content: "{{ rendered_config }}"
+#     dest: "/tmp/rendered_config_{{ ansible_date_time.iso8601 }}.yaml"
+#   delegate_to: localhost
+#   tags: debug_configmap
 
-- name: Expose Grafana via NodePort
-  kubernetes.core.k8s:
-    definition:
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: grafana
-        namespace: "{{ grafana_namespace }}"
-      spec:
-        type: NodePort
-        selector:
-          app: grafana
-        ports:
-          - port: 3000
-            targetPort: 3000
-            nodePort: "{{ grafana_node_port }}"
-    state: present
+# - name: Show rendered config filename
+#   debug:
+#     msg: "/tmp/rendered_config_{{ ansible_date_time.iso8601 }}.yaml"
+#   tags: debug_configmap
+
+# - name: Create Grafana namespace
+#   kubernetes.core.k8s:
+#     api_version: v1
+#     kind: Namespace
+#     name: "{{ grafana_namespace }}"
+#     state: present
+
+# - name: Apply Grafana dashboard ConfigMap
+#   kubernetes.core.k8s:
+#     definition: "{{ lookup('template', 'grafana-dashboard-configmap.yml.j2') | from_yaml }}"
+#     state: present
+
+# - name: Apply Grafana datasource ConfigMap
+#   kubernetes.core.k8s:
+#     definition: "{{ lookup('file', role_path + '/files/grafana-datasource-configmap.yml') | from_yaml }}"
+#     state: present
+
+# - name: Create Grafana PVC
+#   kubernetes.core.k8s:
+#     src: "{{ role_path }}/files/grafana-pvc.yml"
+#     state: present
+
+# - name: Deploy Grafana
+#   kubernetes.core.k8s:
+#     src: "{{ role_path }}/templates/grafana-deployment.yml.j2"
+#     state: present
+
+# - name: Expose Grafana via NodePort
+#   kubernetes.core.k8s:
+#     definition:
+#       apiVersion: v1
+#       kind: Service
+#       metadata:
+#         name: grafana
+#         namespace: "{{ grafana_namespace }}"
+#       spec:
+#         type: NodePort
+#         selector:
+#           app: grafana
+#         ports:
+#           - port: 3000
+#             targetPort: 3000
+#             nodePort: "{{ grafana_node_port }}"
+#     state: present

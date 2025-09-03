@@ -177,6 +177,8 @@ Code (for ubuntu)
 
 > 5.Install kubernetes tools
 
+Controller Server:
+
         sudo apt-get install -y kubelet kubeadm kubectl
         sudo apt-mark hold kubelet kubeadm kubectl
 
@@ -194,6 +196,25 @@ Code (for ubuntu)
         #10 start the cluster:
         sudo kubeadm init --pod-network-cidr=10.244.0.0/16
 
+Worker Node (Raspberry pi)
+
+>1. edit boot flie
+
+    sudo nano /boot/firmware/cmdline.txt
+>2. Add these parameters to the end of the single line (don’t create a new line)
+
+    cgroup_enable=memory cgroup_memory=1
+
+>3. reboot
+
+>4. validate
+
+    mount | grep cgroup
+
+__Result:__ <br>
+cgroup2 on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot)
+
+<br>System is using cgroup v2, which is totally fine for Kubernetes as long as your version supports it (most do from v1.20 onward). That explains why /sys/fs/cgroup/memory doesn’t exist—because in cgroup v2, memory management is integrated into a unified hierarchy.
 
 __NOTE:__ <br>
 
@@ -283,51 +304,82 @@ NOTE: To create the join commands again, invoke:<br>
 
 ## If your controller server changes IP, you need to re-configure:
 
-__Step 1: set-cluster__<br>
 
-    kubectl config set-cluster angelcruz-ubuntu-laptop1--server=https://192.168.1.99:6443
+### 1. Backup existing PKI
 
-__Step 2: find your cluster__<br>
+    sudo mkdir -p /etc/kubernetes/pki/backup
+    sudo rsync -av --exclude backup /etc/kubernetes/pki/ /etc/kubernetes/pki/backup/
 
-    kubectl config get-clusters
+### 2. Update static pod manifests
 
-RESULT:<br><br>
-NAME<br>
-kubernetes<br>
-angelcruz-ubuntu-laptop1--server=https://192.168.1.99:6443<br>
+Edit /etc/kubernetes/manifests/etcd.yaml:
+<br>Replace all old IPs with the new control-plane IP:
 
-However, the kube/config file may be corrupted:<br>
+    --initial-advertise-peer-urls=https://<NEW-IP>:2380
+    --listen-peer-urls=https://<NEW-IP>:2380
+    --advertise-client-urls=https://<NEW-IP>:2379
+    --listen-client-urls=https://127.0.0.1:2379,https://<NEW-IP>:2379
 
-![two_clusters](images/two_clusters.png)
+### 3. Update the annotations
 
-
-The one pointing to 192.168.1.99 (your new controller IP) is malformed, and the one pointing to 192.168.1.100 (your old IP) is still active. That’s why kubectl keeps trying to reach the wrong address.<br>
-
-1> Remove the Broken Cluster Entry
-
-    kubectl config delete-cluster angelcruz-ubuntu-laptop1--server=https://192.168.1.99:6443
-
-2> Update the Existing Cluster to Use the New IP
-
-    kubectl config set-cluster kubernetes --server=https://192.168.1.99:6443
-
-3> Verify the Change
-
-    kubectl config view
+    kubeadm.kubernetes.io/etcd.advertise-client-urls: https://<NEW-IP>:2379
 
 
-![k_config_view](images/k_config_view.png)
+Note: Leave --etcd-servers=https://127.0.0.1:2379 in /etc/kubernetes/manifests/kube-apiserver.yaml. Do not change it to the new IP.
+
+### 4. Remove old certificates that reference the old IP
+
+    sudo rm /etc/kubernetes/pki/etcd/server.*
+    sudo rm /etc/kubernetes/pki/etcd/peer.*
+    sudo rm /etc/kubernetes/pki/etcd/healthcheck-client.*
+    sudo rm /etc/kubernetes/pki/apiserver-etcd-client.*
+    sudo rm /etc/kubernetes/pki/apiserver.*
+
+### 5. Regenerate etcd certificates
 
 
+    sudo kubeadm init phase certs etcd-server
+    sudo kubeadm init phase certs etcd-peer
+    sudo kubeadm init phase certs etcd-healthcheck-client
+    sudo kubeadm init phase certs apiserver-etcd-client
 
-### Verify the Cluster:
-Check Node Status.
-Code
+
+### 6 Regenerate apiserver certificate with the new IP
+
+    sudo kubeadm init phase certs apiserver --apiserver-cert-extra-sans <NEW-IP>
+
+### 7. Restart kubelet
+
+    sudo systemctl restart kubelet
+
+### 8. Verify cluster components
+
+#### Check etcd:
+
+    sudo crictl ps | grep etcd
+    sudo crictl logs $(sudo crictl ps -a --name etcd -q | head -n1)
+
+
+#### Check kube-apiserver:
+
+    sudo crictl ps | grep kube-apiserver
+    sudo crictl logs $(sudo crictl ps -a --name kube-apiserver -q | head -n1)
+
+
+### Check nodes and system pods:
 
     kubectl get nodes
+    kubectl get pods -n kube-system
+
 
 RESULT:<br>
 ![k8_started](images/k8_started.png)
+
+
+Note:
+you can all of the above steps  by running script:<br>
+
+    ./refresh-k8-ip-changed.sh
 
 ### The control plane node should show as Ready. Check Pods.
 
@@ -1057,3 +1109,31 @@ Explore taints and tolerations if you want to control scheduling
 Or even start building something fun on your Pi cluster—like a home automation app or a mini web service
 
 Let me know what direction you’re thinking, and I’ll help you take the next step!
+
+## Setting up VNC Server Raspberry Pi
+
+> 1. Edit LightDM or Desktop Session Config, and set the Seat as:
+
+    [Seat:*]
+    autologin-user=pi
+    autologin-session=xfce
+    display-setup-script=/usr/bin/X
+
+>2. Choose xfce4-session 
+
+    sudo update-alternatives --config x-session-manager
+
+Choose:<br>
+
+    /usr/bin/xfce4-session | 40  | manual mode
+
+
+>3. Reboot
+
+    sudo reboot
+
+>4. Check
+
+    loginctl show-session <session_id> | grep Type
+
+

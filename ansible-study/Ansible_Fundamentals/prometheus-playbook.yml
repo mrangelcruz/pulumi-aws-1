@@ -14,5 +14,5 @@
           - targets: ['node1:9100', 'node2:9100']
 
   roles:
-    - prometheus
+    # - prometheus
     - grafana
