@@ -904,6 +904,14 @@ Code
     sudo containerd config default | sudo tee /etc/containerd/config.toml
     sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
     sudo systemctl restart containerd
+
+Edit file: <br>
+    sudo nano /boot/firmware/cmdline.txt
+
+Append this to the end of the line:
+
+    cgroup_enable=memory cgroup_memory=1
+
 ---
 Add Kubernetes apt repository.
 Code
@@ -1026,6 +1034,7 @@ create it then in raspberry pi:
 
     sudo mkdir -p /run/systemd/resolve
     sudo ln -sf /etc/resolv.conf /run/systemd/resolve/resolv.conf
+    sudo mkdir -p /etc/kubernetes/manifests
     sudo systemctl restart kubelet
 
 SUCCESS!!
