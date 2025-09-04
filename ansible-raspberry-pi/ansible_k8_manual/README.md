@@ -366,6 +366,12 @@ Note: Leave --etcd-servers=https://127.0.0.1:2379 in /etc/kubernetes/manifests/k
     sudo crictl ps | grep kube-apiserver
     sudo crictl logs $(sudo crictl ps -a --name kube-apiserver -q | head -n1)
 
+### 9. regenerate kubeconfig
+
+    sudo sed -i "s/https:\/\/192\.168\.1\.[0-9]\+:6443/https:\/\/$NEW_IP:6443/" /etc/kubernetes/admin.conf
+    mkdir -p ~/.kube
+    sudo cp /etc/kubernetes/admin.conf ~/.kube/config
+    sudo chown $(id -u):$(id -g) ~/.kube/config
 
 ### Check nodes and system pods:
 

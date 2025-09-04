@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-NEW_IP="192.168.1.98"
+NEW_IP="192.168.1.99"
 
 echo "Step 1: Backup existing PKI..."
 sudo mkdir -p /etc/kubernetes/pki/backup
@@ -49,3 +49,9 @@ kubectl get nodes
 
 echo "Kube-system pods:"
 kubectl get pods -n kube-system
+
+echo "Step 9: Update kubeconfig with new IP..."
+sudo sed -i "s/https:\/\/192\.168\.1\.[0-9]\+:6443/https:\/\/$NEW_IP:6443/" /etc/kubernetes/admin.conf
+mkdir -p ~/.kube
+sudo cp /etc/kubernetes/admin.conf ~/.kube/config
+sudo chown $(id -u):$(id -g) ~/.kube/config
